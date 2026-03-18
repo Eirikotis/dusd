@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DUSD Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="bg-noise"></div>
+    <div class="flame-bg" aria-hidden="true"></div>
+    <header class="header">
+      <div class="brand">
+        <img class="logo" src="/assets/DUSD.png" alt="DUSD logo" />
+        <div class="title">
+          <div class="h1">
+            <span class="h1-white">DUSD</span>
+            <span class="h1-orange">Dashboard</span>
+          </div>
+          <div class="sub">Deflationary meme token on Solana</div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container container-stage">
+      <img
+        class="mascot-right"
+        src="/assets/dusdguy.png"
+        alt=""
+        aria-hidden="true"
+        decoding="async"
+      />
+      <section class="grid-hero">
+        <div class="card hero-left">
+          <div class="card-head">
+            <div class="card-title">Supply vs Burned</div>
+            <div class="pill" id="lastUpdatedPill">last updated: —</div>
+          </div>
+          <div class="visual-placeholder is-live">
+            <div class="ring" id="supplyRing" aria-label="Burned percent ring">
+              <div class="ring-inner">
+                <div class="ring-big" id="burnedPct">—</div>
+                <div class="ring-sub">burned of original</div>
+              </div>
+            </div>
+            <div class="visual-label">
+              <div><span class="dot dot-orange"></span> Burned</div>
+              <div><span class="dot dot-green"></span> Circulating</div>
+              <div class="visual-mini"><span class="muted">Supply:</span> <span id="currentSupply">—</span></div>
+            </div>
+          </div>
+          <div class="hero-metrics">
+            <div class="metric">
+              <div class="k">Total burned</div>
+              <div class="v v-burn" id="totalBurned">—</div>
+            </div>
+            <div class="metric">
+              <div class="k">Burned value @ current price</div>
+              <div class="v v-usd" id="burnedValue">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card hero-right">
+          <div class="card-head">
+            <div class="card-title">Burn momentum</div>
+            <div class="seg" role="tablist" aria-label="Burn timeframe">
+              <button class="seg-btn is-active" data-burn-window="24h">24H</button>
+              <button class="seg-btn" data-burn-window="7d">7D</button>
+              <button class="seg-btn" data-burn-window="30d">30D</button>
+            </div>
+          </div>
+
+          <div class="rows">
+            <div class="row">
+              <div class="k">Burned in period</div>
+              <div class="v v-burn v-strong" id="burnWindowAmount">—</div>
+            </div>
+            <div class="row">
+              <div class="k">Holder change</div>
+              <div class="v" id="holderChange">—</div>
+            </div>
+            <div class="row">
+              <div class="k">Average burn / second</div>
+              <div class="v" id="burnPerSecond">—</div>
+            </div>
+            <div class="row">
+              <div class="k">Projected time to zero</div>
+              <div class="v" id="timeToZero">—</div>
+            </div>
+            <div class="row">
+              <div class="k">Burn as % of circulating (period)</div>
+              <div class="v v-burn" id="burnPctCirc">—</div>
+            </div>
+          </div>
+
+          <div class="hint" id="burnWindowHint"></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div class="section-title">Trading</div>
+          <div class="seg" role="tablist" aria-label="Trading timeframe">
+            <button class="seg-btn is-active" data-trade-window="24h">24H</button>
+            <button class="seg-btn" data-trade-window="7d">7D</button>
+            <button class="seg-btn" data-trade-window="30d">30D</button>
+          </div>
+        </div>
+
+        <div class="grid-trade">
+          <div class="card mini">
+            <div class="k">Volume</div>
+            <div class="v" id="tradeVolume">—</div>
+            <div class="mini-sub" id="tradeVolumeLabel"></div>
+          </div>
+          <div class="card mini">
+            <div class="k">Current price</div>
+            <div class="v" id="priceUsd">—</div>
+          </div>
+          <div class="card mini">
+            <div class="k">Current liquidity</div>
+            <div class="v" id="liquidityUsd">—</div>
+          </div>
+          <div class="card mini">
+            <div class="k">Price change (period)</div>
+            <div class="v" id="priceChange">—</div>
+          </div>
+          <div class="card mini">
+            <div class="k">Liquidity change (period)</div>
+            <div class="v" id="liqChange">—</div>
+          </div>
+        </div>
+
+        <div class="gallery">
+          <div class="gallery-card">
+            <img
+              class="gallery-img"
+              src="/assets/photo_2026-03-17_14-13-55.jpg"
+              alt="DUSD community photo 1"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
+          <div class="gallery-card">
+            <img
+              class="gallery-img"
+              src="/assets/photo_2026-03-12_18-03-36.jpg"
+              alt="DUSD community photo 2"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
+          <div class="gallery-card">
+            <img
+              class="gallery-img"
+              src="/assets/photo_2026-03-10_12-37-05.jpg"
+              alt="DUSD community photo 3"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div class="section-title">Recent burns</div>
+          <button class="btn" id="refreshBurns">Refresh</button>
+        </div>
+
+        <div class="card table-card">
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Timestamp (UTC)</th>
+                  <th>Amount</th>
+                  <th>Signature</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody id="burnTable">
+                <tr><td colspan="4" class="muted">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <div class="muted" id="statusLine">—</div>
+      </footer>
+    </main>
+
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>
+
