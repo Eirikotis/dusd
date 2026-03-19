@@ -21,7 +21,6 @@ body{
   margin:0;
   font-family:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   color:var(--text);
-  overflow-x:hidden;
   background: radial-gradient(1200px 900px at 65% -20%, rgba(255,90,20,.18), transparent 60%),
               radial-gradient(900px 700px at 20% 0%, rgba(22,213,90,.10), transparent 55%),
               linear-gradient(180deg, var(--bg), var(--bg2));
@@ -30,28 +29,9 @@ body{
 .bg-noise{
   pointer-events:none;
   position:fixed; inset:0;
-  z-index:0;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E");
   mix-blend-mode:overlay;
   opacity:.20;
-}
-
-.flame-bg{
-  pointer-events:none;
-  position:fixed;
-  left:0;
-  bottom:0;
-  width:100vw;
-  height: clamp(90px, 16vh, 160px);
-  z-index:1;
-  background-image: url("/assets/flmbg.png");
-  background-repeat: repeat-x;
-  background-position: bottom center;
-  background-size: auto 100%;
-  opacity:.55;
-  filter:
-    drop-shadow(0 -16px 28px rgba(0,0,0,.55))
-    drop-shadow(0 0 20px rgba(255,90,20,.10));
 }
 
 .header{
@@ -99,23 +79,20 @@ body{
 
 .mascot-right{
   position:fixed;
-  right: 0;
+  right: -18px;
   top: 96px;
   width: clamp(220px, 24vw, 380px);
   height: auto;
   pointer-events:none;
   user-select:none;
-  z-index:2;
-  /* The source PNG has a bit of transparent padding on the right.
-     Nudge it past the viewport edge so the visible hand "touches" the edge. */
-  transform: translateX(18px);
+  z-index:0;
   filter:
     drop-shadow(0 22px 36px rgba(0,0,0,.55))
     drop-shadow(0 0 24px rgba(255,90,20,.14));
   opacity: .96;
 }
 
-.grid-hero, .section{ position:relative; z-index:3; }
+.grid-hero, .section{ position:relative; z-index:1; }
 
 .grid-hero{
   display:grid;
@@ -286,6 +263,8 @@ body{
 .v-usd{
   color: var(--usdGreen);
   text-shadow: 0 0 18px rgba(74, 222, 128, .18);
+  display:inline;
+  margin-left:6px;
 }
 
 .v-strong{
@@ -300,6 +279,7 @@ body{
 .rows{ display:flex; flex-direction:column; gap:10px; }
 .row{
   display:flex;
+  flex-wrap:nowrap;
   align-items:baseline;
   justify-content:space-between;
   gap:14px;
@@ -308,8 +288,18 @@ body{
   border-radius:14px;
   background:rgba(0,0,0,.18);
 }
-.row .k{ color:var(--muted2); font-size:12px; }
-.row .v{ font-weight:600; }
+.row .k{
+  color:var(--muted2);
+  font-size:12px;
+  flex:0 0 auto;
+}
+.row .v{
+  font-weight:600;
+  flex:1 1 auto;
+  text-align:right;
+  min-width:0;
+  white-space:nowrap;
+}
 
 .seg{
   display:flex;
@@ -365,6 +355,26 @@ body{
   grid-template-columns: repeat(3, 1fr);
   gap:12px;
 }
+
+/* Featured CTO banner (single image) */
+.gallery--single{
+  grid-template-columns: 1fr;
+  justify-items: center;
+  margin-top: 8px;
+  margin-bottom: 6px;
+}
+.gallery--single .gallery-card{
+  width: min(960px, 100%);
+  padding: 8px 10px;
+}
+.gallery--single .gallery-img{
+  height: 190px;
+  width: 100%;
+  object-fit: contain;
+  object-position: center;
+  background: transparent;
+  filter: saturate(1.04) contrast(1.02);
+}
 .gallery-card{
   border:1px solid var(--line);
   border-radius:var(--radius);
@@ -384,7 +394,7 @@ body{
 .gallery-img{
   display:block;
   width:100%;
-  height:160px;
+  height:170px;
   object-fit:cover;
   object-position:center;
   filter:saturate(1.05) contrast(1.03);
@@ -455,16 +465,52 @@ body{
   border-top:1px solid rgba(255,255,255,.08);
 }
 
+.social-row{
+  margin-top:10px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.social-label{
+  font-size:12px;
+  color:var(--muted2);
+}
+.social-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:32px;
+  height:32px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(0,0,0,.4);
+  box-shadow:0 0 0 1px rgba(0,0,0,.6);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+}
+.social-btn:hover{
+  transform: translateY(-1px);
+  border-color:rgba(255,90,20,.6);
+  box-shadow:0 0 18px rgba(255,90,20,.24);
+  background:rgba(255,90,20,.16);
+}
+.social-icon{
+  display:block;
+  width:18px;
+  height:18px;
+  object-fit:contain;
+}
+
 @media (max-width: 980px){
   .grid-hero{ grid-template-columns:1fr; }
   .grid-trade{ grid-template-columns:1fr 1fr; }
   .hero-metrics{ grid-template-columns:1fr; }
   .visual-placeholder.is-live{ flex-direction:column; height:auto; }
   .mascot-right{
-    right: 0;
+    right: -16px;
     top: 84px;
     width: clamp(180px, 30vw, 300px);
-    transform: translateX(14px);
+    transform: none;
     opacity:.92;
   }
   .gallery{ grid-template-columns: 1fr 1fr; }
@@ -475,7 +521,12 @@ body{
 @media (max-width: 640px){
   .mascot-right{ display:none; }
   .gallery{ grid-template-columns: 1fr; }
-  .gallery-img{ height:180px; }
+  .gallery-img{ height:140px; }
   .flame-bg{ height: clamp(54px, 10vh, 90px); opacity:.45; }
+  #statusLine{ display:none; }
+  .row .v{
+    white-space:normal;
+    text-align:right;
+  }
 }
 

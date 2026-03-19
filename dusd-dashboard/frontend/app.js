@@ -72,6 +72,7 @@ const els = {
 
 let burnWindow = "24h";
 let tradeWindow = "24h";
+let currentPriceUsd = null;
 
 function fmtIso(ts) {
   if (!ts || !Number.isFinite(Number(ts))) return "—";
@@ -96,6 +97,7 @@ async function loadCurrent() {
   els.burnedValue.textContent = cur.burned_value_usd_at_current_price === null ? "N/A" : fmtUsd(cur.burned_value_usd_at_current_price, 2);
   els.priceUsd.textContent = cur.price_usd === null ? "N/A" : fmtUsd(cur.price_usd, 8);
   els.liquidityUsd.textContent = cur.liquidity_usd === null ? "N/A" : fmtUsd(cur.liquidity_usd, 2);
+  currentPriceUsd = cur.price_usd === null || cur.price_usd === undefined ? null : Number(cur.price_usd);
   if (els.currentSupply) {
     els.currentSupply.textContent = cur.current_supply === null ? "N/A" : `${fmtNum(cur.current_supply, 6)} DUSD`;
   }
@@ -116,7 +118,19 @@ async function loadCurrent() {
 
 async function loadBurnWindow() {
   const m = await getJson(`/api/metrics?window=${encodeURIComponent(burnWindow)}`);
-  els.burnWindowAmount.textContent = m.burned_in_window === null ? "N/A" : `${fmtNum(m.burned_in_window, 6)} DUSD`;
+  if (m.burned_in_window === null) {
+    els.burnWindowAmount.textContent = "N/A";
+  } else {
+    const amount = Number(m.burned_in_window);
+    if (!Number.isFinite(amount) || currentPriceUsd === null || !Number.isFinite(currentPriceUsd)) {
+      els.burnWindowAmount.textContent = `${fmtNum(m.burned_in_window, 6)} DUSD`;
+    } else {
+      const burnedUsd = amount * currentPriceUsd;
+      const burnedUsdText = fmtNum(burnedUsd, 2);
+      els.burnWindowAmount.innerHTML =
+        `${fmtNum(amount, 1)} DUSD <span class="v-usd">($${burnedUsdText})</span>`;
+    }
+  }
   if (m.holder_change === null) {
     els.holderChange.textContent = "N/A";
     els.holderChange.className = "v";
