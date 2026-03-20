@@ -32,15 +32,15 @@ def _get_snapshot_at_or_before(conn, ts: int) -> dict[str, Any] | None:
     return None if row is None else dict(row)
 
 
-def _sum_burns_since(conn, since_ts: int) -> float | None:
+def _sum_burns_since(conn, since_ts: int) -> float:
+    # SQLite SUM() returns NULL when no rows match; that means zero burned, not "unknown".
     row = conn.execute(
-        "SELECT SUM(COALESCE(amount_ui, 0)) AS s FROM burn_events WHERE timestamp >= ?",
+        "SELECT COALESCE(SUM(COALESCE(amount_ui, 0)), 0) AS s FROM burn_events WHERE timestamp >= ?",
         (since_ts,),
     ).fetchone()
-    if row is None:
-        return None
-    v = row["s"]
-    return None if v is None else float(v)
+    if row is None or row["s"] is None:
+        return 0.0
+    return float(row["s"])
 
 
 def _tracking_start_ts(conn) -> int | None:
@@ -80,16 +80,13 @@ def timeframe_metrics(conn, *, window_key: str) -> dict[str, Any]:
     burns = _sum_burns_since(conn, start)
     holder_delta = _holder_change(conn, start)
 
-    if burns is None and tracking_start is not None:
-        burns = _sum_burns_since(conn, tracking_start)  # fallback
-
     supply_now = latest.get("current_supply")
     burned_pct_circ = None
-    if burns is not None and supply_now not in (None, 0):
+    if supply_now not in (None, 0):
         burned_pct_circ = float(burns) / float(supply_now) * 100.0
 
     burn_per_sec = None
-    if burns is not None:
+    if burns > 0:
         burn_per_sec = float(burns) / float(window_s)
 
     projected_time_to_zero_s = None

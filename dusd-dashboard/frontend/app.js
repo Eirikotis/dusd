@@ -135,19 +135,33 @@ async function loadCurrent() {
   return cur;
 }
 
+function fmtUsdBurnWindow(amountUsd) {
+  const n = Number(amountUsd);
+  if (!Number.isFinite(n)) return "N/A";
+  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 async function loadBurnWindow() {
   const m = await getJson(`/api/metrics?window=${encodeURIComponent(burnWindow)}`);
-  if (m.burned_in_window === null) {
+  if (m.burned_in_window === null || m.burned_in_window === undefined) {
     els.burnWindowAmount.textContent = "N/A";
   } else {
     const amount = Number(m.burned_in_window);
-    if (!Number.isFinite(amount) || currentPriceUsd === null || !Number.isFinite(currentPriceUsd)) {
+    if (!Number.isFinite(amount)) {
+      els.burnWindowAmount.textContent = "N/A";
+    } else if (amount === 0) {
+      if (currentPriceUsd !== null && Number.isFinite(currentPriceUsd)) {
+        els.burnWindowAmount.innerHTML =
+          `0.0 DUSD <span class="v-usd">($${fmtUsdBurnWindow(0)})</span>`;
+      } else {
+        els.burnWindowAmount.textContent = "0.0 DUSD";
+      }
+    } else if (currentPriceUsd === null || !Number.isFinite(currentPriceUsd)) {
       els.burnWindowAmount.textContent = `${fmtNum(m.burned_in_window, 6)} DUSD`;
     } else {
       const burnedUsd = amount * currentPriceUsd;
-      const burnedUsdText = fmtNum(burnedUsd, 2);
       els.burnWindowAmount.innerHTML =
-        `${fmtNum(amount, 1)} DUSD <span class="v-usd">($${burnedUsdText})</span>`;
+        `${fmtNum(amount, 1)} DUSD <span class="v-usd">($${fmtUsdBurnWindow(burnedUsd)})</span>`;
     }
   }
   if (m.holder_change === null) {
@@ -160,10 +174,25 @@ async function loadBurnWindow() {
     els.holderChange.className = `v ${cls}`;
   }
   els.burnPerSecond.textContent =
-    m.avg_burn_per_second === null ? "N/A" : `${fmtNum(m.avg_burn_per_second, 2)} DUSD/s`;
-  els.timeToZero.textContent = fmtDuration(m.projected_time_to_zero_seconds);
-  els.burnPctCirc.textContent =
-    m.burn_as_pct_of_circulating_in_window === null ? "N/A" : fmtPct(m.burn_as_pct_of_circulating_in_window, 4);
+    m.avg_burn_per_second === null || m.avg_burn_per_second === undefined
+      ? "N/A"
+      : `${fmtNum(m.avg_burn_per_second, 2)} DUSD/s`;
+  if (
+    m.projected_time_to_zero_seconds != null &&
+    Number.isFinite(Number(m.projected_time_to_zero_seconds))
+  ) {
+    els.timeToZero.textContent = fmtDuration(m.projected_time_to_zero_seconds);
+  } else if (Number(m.burned_in_window) === 0) {
+    els.timeToZero.textContent = "∞";
+  } else {
+    els.timeToZero.textContent = "N/A";
+  }
+  if (m.burn_as_pct_of_circulating_in_window === null || m.burn_as_pct_of_circulating_in_window === undefined) {
+    els.burnPctCirc.textContent = "N/A";
+  } else {
+    const p = Number(m.burn_as_pct_of_circulating_in_window);
+    els.burnPctCirc.textContent = p === 0 ? "0.0000%" : fmtPct(p, 4);
+  }
   els.burnWindowHint.textContent = windowLabel(m);
 }
 
