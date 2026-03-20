@@ -7,6 +7,25 @@ const fmtNum = (x, digits = 2) => {
   }
 };
 
+const fmtNumFixed1 = (x) => {
+  if (x === null || x === undefined || Number.isNaN(x)) return "N/A";
+  try {
+    return Number(x).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  } catch {
+    return String(x);
+  }
+};
+
+const fmtUsdFixed1 = (x) => {
+  if (x === null || x === undefined || Number.isNaN(x)) return "N/A";
+  const n = Number(x);
+  try {
+    return `$${n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`;
+  } catch {
+    return `$${String(x)}`;
+  }
+};
+
 const fmtUsd = (x, digits = 6) => {
   if (x === null || x === undefined || Number.isNaN(x)) return "N/A";
   const n = Number(x);
@@ -93,13 +112,13 @@ function windowLabel(metrics) {
 
 async function loadCurrent() {
   const cur = await getJson("/api/current");
-  els.totalBurned.textContent = cur.total_burned === null ? "N/A" : `${fmtNum(cur.total_burned, 6)} DUSD`;
-  els.burnedValue.textContent = cur.burned_value_usd_at_current_price === null ? "N/A" : fmtUsd(cur.burned_value_usd_at_current_price, 2);
+  els.totalBurned.textContent = cur.total_burned === null ? "N/A" : `${fmtNumFixed1(cur.total_burned)} DUSD`;
+  els.burnedValue.textContent = cur.burned_value_usd_at_current_price === null ? "N/A" : fmtUsdFixed1(cur.burned_value_usd_at_current_price);
   els.priceUsd.textContent = cur.price_usd === null ? "N/A" : fmtUsd(cur.price_usd, 8);
   els.liquidityUsd.textContent = cur.liquidity_usd === null ? "N/A" : fmtUsd(cur.liquidity_usd, 2);
   currentPriceUsd = cur.price_usd === null || cur.price_usd === undefined ? null : Number(cur.price_usd);
   if (els.currentSupply) {
-    els.currentSupply.textContent = cur.current_supply === null ? "N/A" : `${fmtNum(cur.current_supply, 6)} DUSD`;
+    els.currentSupply.textContent = cur.current_supply === null ? "N/A" : `${fmtNumFixed1(cur.current_supply)} DUSD`;
   }
 
   const pct = cur.burned_pct_of_original === null ? null : Number(cur.burned_pct_of_original);
@@ -141,7 +160,7 @@ async function loadBurnWindow() {
     els.holderChange.className = `v ${cls}`;
   }
   els.burnPerSecond.textContent =
-    m.avg_burn_per_second === null ? "N/A" : `${fmtNum(m.avg_burn_per_second, 6)} DUSD/s`;
+    m.avg_burn_per_second === null ? "N/A" : `${fmtNum(m.avg_burn_per_second, 2)} DUSD/s`;
   els.timeToZero.textContent = fmtDuration(m.projected_time_to_zero_seconds);
   els.burnPctCirc.textContent =
     m.burn_as_pct_of_circulating_in_window === null ? "N/A" : fmtPct(m.burn_as_pct_of_circulating_in_window, 4);
@@ -151,8 +170,18 @@ async function loadBurnWindow() {
 async function loadTradingWindow() {
   const t = await getJson(`/api/trading?window=${encodeURIComponent(tradeWindow)}`);
 
-  els.tradeVolume.textContent = t.volume === null ? "N/A" : fmtUsd(t.volume, 2);
-  els.tradeVolumeLabel.textContent = t.volume_label || "";
+  let vol = null;
+  if (tradeWindow === "24h") {
+    vol = t.volume;
+  } else if (tradeWindow === "7d") {
+    vol = t.volume_7d;
+  } else if (tradeWindow === "30d") {
+    vol = t.volume_30d;
+  }
+
+  els.tradeVolume.textContent = vol === null ? "N/A" : fmtUsd(vol, 2);
+  // Remove any "estimated from ..." label for longer windows.
+  els.tradeVolumeLabel.textContent = tradeWindow === "24h" ? (t.volume_label || "") : "";
 
   const pc = fmtDeltaPct(t.price_change_pct);
   els.priceChange.textContent = pc.text;

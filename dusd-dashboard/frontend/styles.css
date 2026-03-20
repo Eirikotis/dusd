@@ -181,39 +181,34 @@ body{
   width:170px;
   height:170px;
   border-radius:999px;
-  background:
-    conic-gradient(var(--orange) var(--burnedPct), rgba(22,213,90,.65) 0);
-  box-shadow: 0 0 34px rgba(255,90,20,.18), inset 0 0 0 1px rgba(255,255,255,.10);
-  position:relative;
   display:grid;
   place-items:center;
+  position:relative;
+  background:
+    radial-gradient(circle at center, var(--bg) 58%, transparent 59%),
+    conic-gradient(
+      #ff6a1a 0% var(--burnedPct),
+      #1ecb6b var(--burnedPct) 100%
+    );
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
 }
 .ring::before{
-  content:"";
-  position:absolute;
-  inset:-6px;
-  border-radius:999px;
-  background: radial-gradient(closest-side, rgba(255,90,20,.16), transparent 60%);
-  opacity:.6;
-  filter: blur(2px);
+  display:none;
 }
 .ring::after{
-  content:"";
-  position:absolute;
-  inset:11px;
-  border-radius:999px;
-  background: radial-gradient(closest-side, rgba(255,255,255,.04), rgba(0,0,0,.35));
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+  display:none;
 }
 .ring-inner{
   position:relative;
-  z-index:1;
+  z-index:2;
   text-align:center;
 }
 .ring-big{
   font-family:"Bungee", system-ui, sans-serif;
   letter-spacing:.3px;
   font-size:26px;
+  line-height:1;
+  text-shadow: none;
 }
 .ring-sub{
   margin-top:6px;
@@ -527,6 +522,10 @@ body{
   .row .v{
     white-space:normal;
     text-align:right;
+  }
+  body{
+    background: var(--bg);
+    background-image: none;
   }
 }
 
