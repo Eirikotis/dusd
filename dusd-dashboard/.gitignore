@@ -1,0 +1,7 @@
+dusd-dashboard/backend/data/*.db
+dusd-dashboard/backend/data/*.db-wal
+dusd-dashboard/backend/data/*.db-shm
+dusd-dashboard/backend/.env
+dusd-dashboard/backend/.env.*
+__pycache__/
+*.pyc
