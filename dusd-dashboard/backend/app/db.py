@@ -90,6 +90,22 @@ def migrate(conn: sqlite3.Connection) -> None:
         );
         """
     )
+    conn.commit()
+    snap_cols = {row[1] for row in conn.execute("PRAGMA table_info(token_snapshots_hourly)")}
+    if "dusd_mint" not in snap_cols:
+        conn.execute("ALTER TABLE token_snapshots_hourly ADD COLUMN dusd_mint TEXT")
+        # Legacy rows had no mint; mixing them with a new mint corrupts period metrics.
+        conn.execute("DELETE FROM token_snapshots_hourly WHERE dusd_mint IS NULL")
+        conn.commit()
+
+
+def purge_hourly_snapshots_if_mint_changed(conn: sqlite3.Connection, *, dusd_mint: str) -> None:
+    key = "sync_active_mint"
+    prev = state_get(conn, key)
+    if prev is not None and prev != dusd_mint:
+        conn.execute("DELETE FROM token_snapshots_hourly")
+        conn.commit()
+    state_set(conn, key, dusd_mint)
 
 
 def state_get(conn: sqlite3.Connection, key: str) -> str | None:
@@ -276,7 +292,9 @@ def insert_burn_events(conn: sqlite3.Connection, rows: Iterable[dict[str, Any]])
     return inserted
 
 
-def upsert_hourly_snapshot(conn: sqlite3.Connection, *, hour_ts: int, snapshot: dict[str, Any]) -> bool:
+def upsert_hourly_snapshot(
+    conn: sqlite3.Connection, *, hour_ts: int, snapshot: dict[str, Any], dusd_mint: str
+) -> bool:
     """
     Upsert snapshot for a given hour bucket.
 
@@ -288,12 +306,13 @@ def upsert_hourly_snapshot(conn: sqlite3.Connection, *, hour_ts: int, snapshot: 
         cur = conn.execute(
             """
             INSERT INTO token_snapshots_hourly(
-                hour_ts, captured_at, current_supply, total_burned, holder_count,
+                hour_ts, captured_at, dusd_mint, current_supply, total_burned, holder_count,
                 price_usd, liquidity_usd, volume_24h, buys_24h, sells_24h,
                 price_change_24h_pct, dex_chain_id, dex_id, dex_pair_address
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(hour_ts) DO UPDATE SET
                 captured_at=excluded.captured_at,
+                dusd_mint=excluded.dusd_mint,
                 current_supply=COALESCE(excluded.current_supply, token_snapshots_hourly.current_supply),
                 total_burned=COALESCE(excluded.total_burned, token_snapshots_hourly.total_burned),
                 holder_count=COALESCE(excluded.holder_count, token_snapshots_hourly.holder_count),
@@ -310,6 +329,7 @@ def upsert_hourly_snapshot(conn: sqlite3.Connection, *, hour_ts: int, snapshot: 
             (
                 hour_ts,
                 _now_ts(),
+                dusd_mint,
                 snapshot.get("current_supply"),
                 snapshot.get("total_burned"),
                 snapshot.get("holder_count"),

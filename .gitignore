@@ -1,8 +1,11 @@
+# DUSD dashboard — runtime DB and secrets (do not commit)
 dusd-dashboard/backend/data/*.db
 dusd-dashboard/backend/data/*.db-wal
 dusd-dashboard/backend/data/*.db-shm
 dusd-dashboard/backend/.env
 dusd-dashboard/backend/.env.*
+
+# Python bytecode (often committed by mistake)
 __pycache__/
 *.py[cod]
 *$py.class

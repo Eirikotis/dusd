@@ -77,13 +77,10 @@ const els = {
   burnPerSecond: document.getElementById("burnPerSecond"),
   timeToZero: document.getElementById("timeToZero"),
   burnPctCirc: document.getElementById("burnPctCirc"),
-  burnWindowHint: document.getElementById("burnWindowHint"),
   tradeVolume: document.getElementById("tradeVolume"),
-  tradeVolumeLabel: document.getElementById("tradeVolumeLabel"),
   priceUsd: document.getElementById("priceUsd"),
   liquidityUsd: document.getElementById("liquidityUsd"),
-  priceChange: document.getElementById("priceChange"),
-  liqChange: document.getElementById("liqChange"),
+  tradeTrades: document.getElementById("tradeTrades"),
   burnTable: document.getElementById("burnTable"),
   statusLine: document.getElementById("statusLine"),
   refreshBurns: document.getElementById("refreshBurns"),
@@ -102,12 +99,6 @@ function setActiveButtons(attr, value) {
   document.querySelectorAll(`button[${attr}]`).forEach((b) => {
     b.classList.toggle("is-active", b.getAttribute(attr) === value);
   });
-}
-
-function windowLabel(metrics) {
-  if (!metrics) return "";
-  if (metrics.has_enough_history) return "";
-  return metrics.tracking_started_ts ? "Since tracking began (insufficient history for full window)" : "N/A (no tracking history yet)";
 }
 
 async function loadCurrent() {
@@ -164,14 +155,27 @@ async function loadBurnWindow() {
         `${fmtNum(amount, 1)} DUSD <span class="v-usd">($${fmtUsdBurnWindow(burnedUsd)})</span>`;
     }
   }
-  if (m.holder_change === null) {
+  if (m.holder_count === null || m.holder_count === undefined) {
     els.holderChange.textContent = "N/A";
-    els.holderChange.className = "v";
+    els.holderChange.className = "v holders-line";
   } else {
-    const cls = m.holder_change > 0 ? "pos" : m.holder_change < 0 ? "neg" : "";
-    const sign = m.holder_change > 0 ? "+" : "";
-    els.holderChange.textContent = `${sign}${fmtNum(m.holder_change, 0)}`;
-    els.holderChange.className = `v ${cls}`;
+    const total = Number(m.holder_count);
+    const totalStr = fmtNum(total, 0);
+    let inner;
+    if (m.holder_change === null || m.holder_change === undefined) {
+      inner = ` <span class="holders-delta">(N/A)</span>`;
+    } else {
+      const d = Number(m.holder_change);
+      if (d > 0) {
+        inner = ` <span class="holders-delta pos">(+${fmtNum(d, 0)})</span>`;
+      } else if (d < 0) {
+        inner = ` <span class="holders-delta neg">(${fmtNum(d, 0)})</span>`;
+      } else {
+        inner = ` <span class="holders-delta neg">(0)</span>`;
+      }
+    }
+    els.holderChange.innerHTML = `${totalStr}${inner}`;
+    els.holderChange.className = "v holders-line";
   }
   els.burnPerSecond.textContent =
     m.avg_burn_per_second === null || m.avg_burn_per_second === undefined
@@ -193,32 +197,81 @@ async function loadBurnWindow() {
     const p = Number(m.burn_as_pct_of_circulating_in_window);
     els.burnPctCirc.textContent = p === 0 ? "0.0000%" : fmtPct(p, 4);
   }
-  els.burnWindowHint.textContent = windowLabel(m);
+}
+
+function tradingChgHtml(pct) {
+  if (pct === null || pct === undefined || Number.isNaN(Number(pct))) {
+    return `<span class="metric-inline-chg metric-inline-chg--na">(N/A)</span>`;
+  }
+  const n = Number(pct);
+  const abs = Math.abs(n);
+  const num = abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const signed = (n > 0 ? "+" : n < 0 ? "-" : "") + num + "%";
+  const cls =
+    n > 0 ? "metric-inline-chg metric-inline-chg--pos" : "metric-inline-chg metric-inline-chg--neg";
+  return `<span class="${cls}">(${signed})</span>`;
+}
+
+function setTradingMetricLine(el, primaryText, pct) {
+  el.innerHTML = `<span class="metric-inline-primary">${primaryText}</span><span class="metric-inline-secondary">${tradingChgHtml(pct)}</span>`;
+}
+
+/** 24h trades total: prefer API trades_24h, else buys+sells (older / partial JSON). */
+function trading24hTradesTotal(t) {
+  if (typeof t.trades_24h === "number" && !Number.isNaN(t.trades_24h)) return t.trades_24h;
+  if (typeof t.trades_count === "number" && !Number.isNaN(t.trades_count)) return t.trades_count;
+  const b = t.buys_24h;
+  const s = t.sells_24h;
+  if (b != null && s != null) {
+    const nb = Number(b);
+    const ns = Number(s);
+    if (Number.isFinite(nb) && Number.isFinite(ns)) return nb + ns;
+  }
+  return null;
+}
+
+/** 24h price %: coalesce field names from API. */
+function trading24hPriceChangePct(t) {
+  const candidates = [t.price_change_pct, t.price_change_24h_pct];
+  for (const p of candidates) {
+    if (p !== null && p !== undefined && !Number.isNaN(Number(p))) return Number(p);
+  }
+  return null;
 }
 
 async function loadTradingWindow() {
   const t = await getJson(`/api/trading?window=${encodeURIComponent(tradeWindow)}`);
 
-  let vol = null;
-  if (tradeWindow === "24h") {
-    vol = t.volume;
-  } else if (tradeWindow === "7d") {
-    vol = t.volume_7d;
-  } else if (tradeWindow === "30d") {
-    vol = t.volume_30d;
+  const pMain = t.price_usd === null || t.price_usd === undefined ? "N/A" : fmtUsd(t.price_usd, 8);
+  const priceChg =
+    tradeWindow === "24h" ? trading24hPriceChangePct(t) : t.price_change_pct;
+  setTradingMetricLine(els.priceUsd, pMain, priceChg);
+
+  const volMain = t.volume === null || t.volume === undefined ? "N/A" : fmtUsd(t.volume, 2);
+  setTradingMetricLine(els.tradeVolume, volMain, t.volume_change_pct);
+
+  const lMain = t.liquidity_usd === null || t.liquidity_usd === undefined ? "N/A" : fmtUsd(t.liquidity_usd, 2);
+  setTradingMetricLine(els.liquidityUsd, lMain, t.liquidity_change_pct);
+
+  if (els.tradeTrades) {
+    if (tradeWindow === "24h") {
+      const tt = trading24hTradesTotal(t);
+      if (tt !== null && !Number.isNaN(tt)) {
+        setTradingMetricLine(els.tradeTrades, fmtNum(tt, 0), t.trades_change_pct);
+      } else {
+        els.tradeTrades.innerHTML = `<span class="metric-inline-primary">N/A</span><span class="metric-inline-secondary">${tradingChgHtml(null)}</span>`;
+      }
+    } else if (t.trades_count === null || t.trades_count === undefined) {
+      els.tradeTrades.innerHTML = `<span class="metric-inline-primary">N/A</span><span class="metric-inline-secondary">${tradingChgHtml(
+        t.trades_change_pct,
+      )}</span>`;
+    } else {
+      const tc = Number(t.trades_count);
+      const main =
+        Number.isFinite(tc) && Math.abs(tc - Math.round(tc)) < 0.001 ? fmtNum(Math.round(tc), 0) : fmtNum(tc, 1);
+      setTradingMetricLine(els.tradeTrades, main, t.trades_change_pct);
+    }
   }
-
-  els.tradeVolume.textContent = vol === null ? "N/A" : fmtUsd(vol, 2);
-  // Remove any "estimated from ..." label for longer windows.
-  els.tradeVolumeLabel.textContent = tradeWindow === "24h" ? (t.volume_label || "") : "";
-
-  const pc = fmtDeltaPct(t.price_change_pct);
-  els.priceChange.textContent = pc.text;
-  els.priceChange.className = `v ${pc.cls}`;
-
-  const lc = fmtDeltaPct(t.liquidity_change_pct);
-  els.liqChange.textContent = lc.text;
-  els.liqChange.className = `v ${lc.cls}`;
 }
 
 function sigLink(sig) {

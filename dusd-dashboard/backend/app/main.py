@@ -14,7 +14,15 @@ from fastapi.staticfiles import StaticFiles
 from .clients.dexscreener import DexScreenerClient
 from .clients.helius import HeliusClient
 from .config import load_settings
-from .db import Db, connect, migrate, seed_burn_events_from_csv_once, state_get, upsert_hourly_snapshot
+from .db import (
+    Db,
+    connect,
+    migrate,
+    purge_hourly_snapshots_if_mint_changed,
+    seed_burn_events_from_csv_once,
+    state_get,
+    upsert_hourly_snapshot,
+)
 from .metrics import current_overview, recent_burns, timeframe_metrics, trading_metrics
 from .sync import run_hourly_sync_once
 
@@ -33,6 +41,7 @@ def create_app() -> FastAPI:
     db = Db(path=str(Path(__file__).resolve().parents[1] / settings.sqlite_path))
     conn = connect(db)
     migrate(conn)
+    purge_hourly_snapshots_if_mint_changed(conn, dusd_mint=settings.dusd_mint)
 
     # One-time seed from CSV (no production historical backfill).
     seed_res = seed_burn_events_from_csv_once(conn=conn, csv_path=str(Path(__file__).resolve().parents[1] / settings.seed_burn_csv))
@@ -83,15 +92,19 @@ def create_app() -> FastAPI:
 
     @app.get("/api/current")
     def api_current():
-        return current_overview(conn, original_supply=settings.original_supply)
+        return current_overview(
+            conn, original_supply=settings.original_supply, dusd_mint=settings.dusd_mint
+        )
 
     @app.get("/api/metrics")
     def api_metrics(window: str):
-        return timeframe_metrics(conn, window_key=window)
+        return timeframe_metrics(conn, window_key=window, dusd_mint=settings.dusd_mint)
 
     @app.get("/api/trading")
     def api_trading(window: str):
-        return trading_metrics(conn, window_key=window)
+        return trading_metrics(
+            conn, window_key=window, dusd_mint=settings.dusd_mint, dexs=app.state.dexs
+        )
 
     @app.get("/api/burns")
     def api_burns(limit: int = 50):
@@ -106,7 +119,10 @@ def create_app() -> FastAPI:
 
     @app.get("/api/debug/sync-status")
     def debug_sync_status():
-        latest = conn.execute("SELECT * FROM token_snapshots_hourly ORDER BY hour_ts DESC LIMIT 1").fetchone()
+        latest = conn.execute(
+            "SELECT * FROM token_snapshots_hourly WHERE dusd_mint = ? ORDER BY hour_ts DESC LIMIT 1",
+            (settings.dusd_mint,),
+        ).fetchone()
         burn_count = conn.execute("SELECT COUNT(1) AS c FROM burn_events").fetchone()
         return {
             **app.state.sync_status,
@@ -136,7 +152,9 @@ def create_app() -> FastAPI:
                 best = app.state.dexs.choose_best_pair_by_liquidity_usd(pairs)
                 dex_snap = app.state.dexs.parse_snapshot(best)
                 hour_ts = int(time.time()) - (int(time.time()) % 3600)
-                upsert_hourly_snapshot(conn, hour_ts=hour_ts, snapshot=dex_snap)
+                upsert_hourly_snapshot(
+                    conn, hour_ts=hour_ts, snapshot=dex_snap, dusd_mint=settings.dusd_mint
+                )
                 app.state.sync_status["last_success"] = True
                 return
 

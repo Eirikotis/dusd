@@ -45,13 +45,12 @@ class DexScreenerClient:
                 "volume_24h": None,
                 "buys_24h": None,
                 "sells_24h": None,
+                "trades_24h": None,
                 "price_change_24h_pct": None,
             }
 
-        tx24 = ((best_pair.get("txns") or {}).get("h24") or {})
         vol = (best_pair.get("volume") or {})
         liq = (best_pair.get("liquidity") or {})
-        pc = (best_pair.get("priceChange") or {})
 
         def f(x) -> float | None:
             try:
@@ -59,11 +58,22 @@ class DexScreenerClient:
             except Exception:
                 return None
 
-        def i(x) -> int | None:
-            try:
-                return int(x)
-            except Exception:
-                return None
+        # Exact Dex mapping: trades only null when `txns` is missing (key absent or null).
+        txns_raw = best_pair.get("txns")
+        buys_24h: int | None
+        sells_24h: int | None
+        trades_24h: int | None
+        if txns_raw is None:
+            buys_24h = sells_24h = trades_24h = None
+        else:
+            txns_24h = ((txns_raw or {}).get("h24") or {})
+            if not isinstance(txns_24h, dict):
+                txns_24h = {}
+            buys_24h = int(txns_24h.get("buys") or 0)
+            sells_24h = int(txns_24h.get("sells") or 0)
+            trades_24h = buys_24h + sells_24h
+
+        price_change_24h_pct = float(((best_pair.get("priceChange") or {}).get("h24")) or 0)
 
         return {
             "dex_chain_id": best_pair.get("chainId"),
@@ -72,8 +82,9 @@ class DexScreenerClient:
             "price_usd": f(best_pair.get("priceUsd")),
             "liquidity_usd": f(liq.get("usd")),
             "volume_24h": f(vol.get("h24")),
-            "buys_24h": i(tx24.get("buys")),
-            "sells_24h": i(tx24.get("sells")),
-            "price_change_24h_pct": f(pc.get("h24")),
+            "buys_24h": buys_24h,
+            "sells_24h": sells_24h,
+            "trades_24h": trades_24h,
+            "price_change_24h_pct": price_change_24h_pct,
         }
 

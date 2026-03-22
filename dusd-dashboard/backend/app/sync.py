@@ -141,8 +141,17 @@ def run_hourly_sync_once(*, settings: Settings, helius: HeliusClient, dexs: DexS
 
     snap = fetch_current_snapshot(settings=settings, helius=helius, dexs=dexs)
     hour_ts = _hour_floor_ts()
-    inserted = upsert_hourly_snapshot(conn, hour_ts=hour_ts, snapshot=snap)
+    inserted = upsert_hourly_snapshot(conn, hour_ts=hour_ts, snapshot=snap, dusd_mint=settings.dusd_mint)
     log.info("snapshot.upsert hour_ts=%d changed=%s", hour_ts, inserted)
+    log.info(
+        "sync.once.complete mint=%s price_usd=%s liquidity_usd=%s volume_24h=%s holders=%s supply=%s",
+        settings.dusd_mint[:8] + "…",
+        snap.get("price_usd"),
+        snap.get("liquidity_usd"),
+        snap.get("volume_24h"),
+        snap.get("holder_count"),
+        snap.get("current_supply"),
+    )
 
     return {
         "burn_sync": burn_res,
