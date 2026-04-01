@@ -569,6 +569,10 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
   grid-template-columns: repeat(3, 1fr);
   gap:12px;
 }
+.gallery--mobile,
+.section--gallery-mobile-only{
+  display:none;
+}
 
 /* Featured CTO banner (single image) */
 .gallery--single{
@@ -741,8 +745,29 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
 
 @media (max-width: 640px){
   .mascot-right{ display:none; }
+  .gallery--desktop{
+    display:none !important;
+  }
+  .gallery--mobile{
+    display:grid;
+    grid-template-columns:1fr;
+    margin-top:12px;
+  }
+  .section--gallery-mobile-only{
+    display:block;
+    margin-top:22px;
+  }
+  .section--gallery-mobile-only .gallery--mobile{
+    margin-top:0;
+  }
+  .gallery-img.gallery-img--mobile-full{
+    height:auto;
+    width:100%;
+    max-height:none;
+    object-fit:contain;
+    object-position:center;
+  }
   .gallery{ grid-template-columns: 1fr; }
-  .gallery-img{ height:165px; }
   .flame-bg{ height: clamp(54px, 10vh, 90px); opacity:.45; }
   .row .v{
     white-space:normal;

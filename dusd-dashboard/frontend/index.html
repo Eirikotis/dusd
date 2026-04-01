@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Mono:wght@400;600&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/styles.css?v=20260404" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260405" />
   </head>
   <body>
     <div class="bg-noise"></div>
@@ -183,7 +183,7 @@
           </a>
         </div>
 
-        <div class="gallery">
+        <div class="gallery gallery--desktop">
           <div class="gallery-card">
             <img
               class="gallery-img"
@@ -207,6 +207,17 @@
               class="gallery-img"
               src="/assets/image (9).jpg"
               alt="DUSD banner 3"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
+        </div>
+        <div class="gallery gallery--mobile gallery--mobile-single">
+          <div class="gallery-card">
+            <img
+              class="gallery-img gallery-img--mobile-full"
+              src="/assets/image (11).jpg"
+              alt="DUSD banner 1"
               loading="lazy"
               decoding="async"
             />
@@ -237,6 +248,20 @@
           </div>
           <div class="burns-table-footer">
             <button type="button" class="btn" id="burnsViewToggle" hidden>View more</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--gallery-mobile-only" aria-label="Gallery">
+        <div class="gallery gallery--mobile gallery--mobile-single">
+          <div class="gallery-card">
+            <img
+              class="gallery-img gallery-img--mobile-full"
+              src="/assets/image (8).jpg"
+              alt="DUSD banner 2"
+              loading="lazy"
+              decoding="async"
+            />
           </div>
         </div>
       </section>
