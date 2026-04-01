@@ -346,6 +346,12 @@ body{
   flex-direction:column;
   gap:12px;
 }
+.trading-layout-main{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  min-width:0;
+}
 .trading-featured.gallery--desktop{
   grid-template-columns:1fr;
   margin-top:0;
@@ -765,6 +771,9 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
     flex-direction:column;
     gap:14px;
   }
+  .trading-layout-main{
+    gap:14px;
+  }
   .gallery--desktop.trading-featured{
     grid-template-columns:1fr;
   }
@@ -782,20 +791,28 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
 
 @media (min-width: 981px){
   .container{
-    max-width:1040px;
+    max-width:1440px;
   }
   .brand{
-    max-width:1040px;
+    max-width:1440px;
+  }
+  .trading-section-inner{
+    max-width:100%;
+    margin-left:0;
+    margin-right:0;
+  }
+  .grid-hero + .section + .section{
+    margin-top:40px;
   }
   .grid-hero{
     grid-template-columns:1.05fr .85fr;
   }
   .trading-layout{
     display:grid;
-    grid-template-columns:1.05fr .85fr;
-    gap:14px;
+    grid-template-columns:minmax(0,1.38fr) minmax(0,1.02fr);
+    gap:16px;
     align-items:stretch;
-    min-height:min(216px, 32vh);
+    min-height:min(200px, 30vh);
   }
   .trading-layout .trading-featured.gallery--desktop{
     margin-top:0;
@@ -803,6 +820,16 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
     height:100%;
     display:flex;
     flex-direction:column;
+  }
+  .trading-layout .trading-layout-main{
+    gap:10px;
+    min-height:0;
+    height:100%;
+    display:flex;
+    flex-direction:column;
+  }
+  .trading-layout .section-head{
+    margin-bottom:0;
   }
   .trading-layout .gallery-card--trading-featured{
     flex:1;
@@ -820,11 +847,12 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
     object-position:center 30%;
   }
   .trading-layout .grid-trade{
-    grid-template-columns:repeat(2, minmax(0, 1fr));
-    grid-template-rows:repeat(3, minmax(0, 1fr));
+    grid-template-columns:repeat(3, minmax(0, 1fr));
+    grid-template-rows:repeat(2, minmax(0, 1fr));
     gap:6px;
+    flex:1;
     height:100%;
-    min-height:100%;
+    min-height:0;
     align-content:stretch;
   }
   .trading-layout .grid-trade .mini{
@@ -848,28 +876,28 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
   }
   .trading-layout .grid-trade a.trade-action-card{
     padding:6px 8px;
-    min-height:38px;
+    min-height:40px;
   }
   .trading-layout .grid-trade .trade-action-label--chart,
   .trading-layout .grid-trade .trade-action-label--buy{
-    font-size:14px;
+    font-size:16px;
     font-weight:900;
     letter-spacing:0.036em;
   }
   .trading-layout .grid-trade .trade-action-chart-stack{
-    gap:5px;
-  }
-  .trading-layout .grid-trade .trade-action-buy-stack{
     gap:4px;
   }
+  .trading-layout .grid-trade .trade-action-buy-stack{
+    gap:3px;
+  }
   .trading-layout .grid-trade .trade-action-card--chart .trade-action-icon--chart{
-    width:32px;
-    height:19px;
-    min-width:32px;
+    width:28px;
+    height:17px;
+    min-width:28px;
   }
   .trading-layout .grid-trade .trade-action-icon--buy{
-    width:12px;
-    height:14px;
+    width:11px;
+    height:13px;
   }
 }
 
