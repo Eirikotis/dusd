@@ -182,7 +182,6 @@ function setupDailyBurnInteractions() {
 
 function renderDailyBurnChart(points) {
   const svg = document.getElementById("dailyBurnSvg");
-  const emptyEl = document.getElementById("dailyBurnEmpty");
   const tip = document.getElementById("dailyBurnTooltip");
   if (!svg) return;
   dailyBurnPlotState = null;
@@ -198,10 +197,8 @@ function renderDailyBurnChart(points) {
     .filter((p) => p.day && Number.isFinite(p.v));
 
   if (!cleaned.length) {
-    if (emptyEl) emptyEl.hidden = false;
     return;
   }
-  if (emptyEl) emptyEl.hidden = true;
 
   const W = 800;
   const H = 240;

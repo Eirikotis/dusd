@@ -845,15 +845,6 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
     min-height:200px;
     display:block;
   }
-  .daily-burn-panel__empty{
-    position:absolute;
-    inset:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:13px;
-    pointer-events:none;
-  }
   .daily-burn-chart__tooltip{
     position:absolute;
     z-index:3;
@@ -938,19 +929,19 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
     box-sizing:border-box;
   }
   .trading-layout .grid-trade .mini .k{
-    font-size:12px;
+    font-size:10.5px;
   }
   .trading-layout .grid-trade .mini .v{
     margin-top:2px;
-    font-size:17px;
+    font-size:15px;
     font-weight:600;
   }
   .trading-layout .grid-trade .mini .metric-inline-primary{
-    font-size:17px;
+    font-size:15px;
     font-weight:700;
   }
   .trading-layout .grid-trade .mini .metric-inline-chg{
-    font-size:12px;
+    font-size:10.5px;
     font-weight:600;
   }
   .trading-layout .grid-trade a.trade-action-card{
@@ -961,7 +952,7 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
   }
   .trading-layout .grid-trade .trade-action-label--chart,
   .trading-layout .grid-trade .trade-action-label--buy{
-    font-size:16px;
+    font-size:14px;
     font-weight:900;
     letter-spacing:0.036em;
   }
