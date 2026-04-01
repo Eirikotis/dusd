@@ -789,6 +789,15 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
   }
 }
 
+@media (max-width: 980px){
+  .trading-layout .grid-trade > :nth-child(1){ order:1; }
+  .trading-layout .grid-trade > :nth-child(2){ order:2; }
+  .trading-layout .grid-trade > :nth-child(3){ order:5; }
+  .trading-layout .grid-trade > :nth-child(4){ order:4; }
+  .trading-layout .grid-trade > :nth-child(5){ order:3; }
+  .trading-layout .grid-trade > :nth-child(6){ order:6; }
+}
+
 @media (min-width: 981px){
   .container{
     max-width:1440px;
