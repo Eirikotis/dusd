@@ -82,13 +82,16 @@ const els = {
   liquidityUsd: document.getElementById("liquidityUsd"),
   tradeTrades: document.getElementById("tradeTrades"),
   burnTable: document.getElementById("burnTable"),
-  statusLine: document.getElementById("statusLine"),
-  refreshBurns: document.getElementById("refreshBurns"),
+  burnsViewToggle: document.getElementById("burnsViewToggle"),
 };
 
 let burnWindow = "24h";
 let tradeWindow = "24h";
 let currentPriceUsd = null;
+/** Full list from API; rendering uses slice when collapsed. */
+let burnItems = [];
+let showAllBurns = false;
+const BURNS_PREVIEW = 8;
 
 function fmtIso(ts) {
   if (!ts || !Number.isFinite(Number(ts))) return "—";
@@ -286,9 +289,7 @@ function sigLink(sig) {
   return a;
 }
 
-async function loadBurns() {
-  const data = await getJson("/api/burns?limit=40");
-  const items = data.items || [];
+function renderBurnRows(items) {
   els.burnTable.innerHTML = "";
   if (!items.length) {
     const tr = document.createElement("tr");
@@ -325,20 +326,29 @@ async function loadBurns() {
   }
 }
 
-async function loadStatus() {
-  try {
-    const h = await getJson("/api/health");
-    const seed = h.seed || {};
-    const seedText =
-      seed.seeded === true
-        ? `seeded CSV (${seed.inserted} inserted)`
-        : seed.reason === "already_seeded"
-          ? "seed already done"
-          : seed.reason || "seed unknown";
-    els.statusLine.textContent = `Status: ${h.ok ? "OK" : "ERR"} · ${seedText} · last seen sig: ${h.last_seen_burn_signature || "—"}`;
-  } catch {
-    els.statusLine.textContent = "Status: API unreachable. Start the backend server.";
+function updateBurnsToggleUi() {
+  const btn = els.burnsViewToggle;
+  if (!btn) return;
+  const n = burnItems.length;
+  if (n <= BURNS_PREVIEW) {
+    btn.hidden = true;
+    return;
   }
+  btn.hidden = false;
+  btn.textContent = showAllBurns ? "View less" : "View more";
+}
+
+function renderBurns() {
+  const visible = showAllBurns ? burnItems : burnItems.slice(0, BURNS_PREVIEW);
+  renderBurnRows(visible);
+  updateBurnsToggleUi();
+}
+
+async function loadBurns() {
+  const data = await getJson("/api/burns?limit=40");
+  burnItems = data.items || [];
+  showAllBurns = false;
+  renderBurns();
 }
 
 function bind() {
@@ -356,20 +366,21 @@ function bind() {
       await loadTradingWindow();
     });
   });
-  els.refreshBurns.addEventListener("click", loadBurns);
+  if (els.burnsViewToggle) {
+    els.burnsViewToggle.addEventListener("click", () => {
+      showAllBurns = !showAllBurns;
+      renderBurns();
+    });
+  }
 }
 
 async function boot() {
   bind();
-  await loadStatus();
   await loadCurrent();
   await loadBurnWindow();
   await loadTradingWindow();
   await loadBurns();
-  setInterval(loadStatus, 30_000);
 }
 
-boot().catch(async () => {
-  await loadStatus();
-});
+boot().catch(() => {});
 

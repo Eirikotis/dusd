@@ -608,7 +608,7 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
 .gallery-img{
   display:block;
   width:100%;
-  height:170px;
+  height:200px;
   object-fit:cover;
   object-position:center;
   filter:saturate(1.05) contrast(1.03);
@@ -633,6 +633,10 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
 }
 
 .table-card{ padding:0; overflow:hidden; }
+.burns-table-footer{
+  padding:10px 14px 14px;
+  text-align:center;
+}
 .table-wrap{ overflow:auto; }
 .table{
   width:100%;
@@ -730,16 +734,15 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
     opacity:.92;
   }
   .gallery{ grid-template-columns: 1fr 1fr; }
-  .gallery-img{ height:150px; }
+  .gallery-img{ height:175px; }
   .flame-bg{ height: clamp(70px, 12vh, 120px); opacity:.5; }
 }
 
 @media (max-width: 640px){
   .mascot-right{ display:none; }
   .gallery{ grid-template-columns: 1fr; }
-  .gallery-img{ height:140px; }
+  .gallery-img{ height:165px; }
   .flame-bg{ height: clamp(54px, 10vh, 90px); opacity:.45; }
-  #statusLine{ display:none; }
   .row .v{
     white-space:normal;
     text-align:right;

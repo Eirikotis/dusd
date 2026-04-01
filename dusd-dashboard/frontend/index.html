@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Mono:wght@400;600&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/styles.css?v=20260331" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260403" />
   </head>
   <body>
     <div class="bg-noise"></div>
@@ -217,7 +217,6 @@
       <section class="section">
         <div class="section-head">
           <div class="section-title">Recent burns</div>
-          <button class="btn" id="refreshBurns">Refresh</button>
         </div>
 
         <div class="card table-card">
@@ -236,11 +235,13 @@
               </tbody>
             </table>
           </div>
+          <div class="burns-table-footer">
+            <button type="button" class="btn" id="burnsViewToggle" hidden>View more</button>
+          </div>
         </div>
       </section>
 
       <footer class="footer">
-        <div class="muted" id="statusLine">—</div>
         <div class="social-row">
           <span class="social-label">Follow:</span>
           <a
@@ -280,7 +281,7 @@
       </footer>
     </main>
 
-    <script type="module" src="/static/app.js?v=20260322"></script>
+    <script type="module" src="/static/app.js?v=20260402"></script>
   </body>
 </html>
 
