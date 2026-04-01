@@ -23,7 +23,7 @@ from .db import (
     state_get,
     upsert_hourly_snapshot,
 )
-from .metrics import current_overview, recent_burns, timeframe_metrics, trading_metrics
+from .metrics import current_overview, daily_burn_totals, recent_burns, timeframe_metrics, trading_metrics
 from .sync import run_hourly_sync_once
 
 
@@ -109,6 +109,10 @@ def create_app() -> FastAPI:
     @app.get("/api/burns")
     def api_burns(limit: int = 50):
         return {"items": recent_burns(conn, limit=limit)}
+
+    @app.get("/api/burns/daily")
+    def api_burns_daily(days: int = 90):
+        return {"points": daily_burn_totals(conn, days=days)}
 
     @app.post("/api/admin/sync-once")
     def admin_sync_once():

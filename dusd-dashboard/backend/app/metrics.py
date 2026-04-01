@@ -341,3 +341,25 @@ def recent_burns(conn, *, limit: int = 50) -> list[dict[str, Any]]:
     ).fetchall()
     return [dict(r) for r in rows]
 
+
+def daily_burn_totals(conn, *, days: int = 90) -> list[dict[str, Any]]:
+    """UTC calendar-day totals from local burn_events (same DB as /api/burns)."""
+    lim = max(1, min(int(days), 366))
+    rows = conn.execute(
+        """
+        SELECT day, total_ui
+        FROM (
+            SELECT strftime('%Y-%m-%d', timestamp, 'unixepoch') AS day,
+                   SUM(COALESCE(amount_ui, 0)) AS total_ui
+            FROM burn_events
+            WHERE timestamp IS NOT NULL
+            GROUP BY day
+            ORDER BY day DESC
+            LIMIT ?
+        ) AS daily_agg
+        ORDER BY day ASC
+        """,
+        (lim,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+

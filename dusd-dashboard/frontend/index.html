@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Mono:wght@400;600&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/styles.css?v=20260425" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260426" />
   </head>
   <body>
     <div class="bg-noise"></div>
@@ -123,6 +123,14 @@
             <div class="k">Volume</div>
             <div class="v metric-line" id="tradeVolume">—</div>
           </div>
+          <div class="card mini">
+            <div class="k">Liquidity</div>
+            <div class="v metric-line" id="liquidityUsd">—</div>
+          </div>
+          <div class="card mini">
+            <div class="k">Trades</div>
+            <div class="v metric-line" id="tradeTrades">—</div>
+          </div>
           <a
             class="card trade-action-card trade-action-card--chart"
             href="https://dexscreener.com/solana/2z2ubdxaafishs6xrz2atv2ro7jl8hfduckxttfhjhdw"
@@ -152,14 +160,6 @@
               </svg>
             </span>
           </a>
-          <div class="card mini">
-            <div class="k">Trades</div>
-            <div class="v metric-line" id="tradeTrades">—</div>
-          </div>
-          <div class="card mini">
-            <div class="k">Liquidity</div>
-            <div class="v metric-line" id="liquidityUsd">—</div>
-          </div>
           <a
             class="card trade-action-card trade-action-card--buy"
             href="https://jup.ag/?buy=B8RHrVBxSjBGKqAbn1tXo6CWjvt5jFkkqjbCZtuDpump"
@@ -185,6 +185,18 @@
           </a>
         </div>
         </div>
+
+        <div class="daily-burn-panel daily-burn-panel--desktop card">
+          <div class="daily-burn-panel__head">
+            <div class="daily-burn-panel__title">DAILY BURN 🔥</div>
+          </div>
+          <div class="daily-burn-panel__body">
+            <svg id="dailyBurnSvg" class="daily-burn-panel__svg" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+            <div class="daily-burn-chart__tooltip" id="dailyBurnTooltip" hidden></div>
+            <div class="daily-burn-panel__empty muted" id="dailyBurnEmpty" hidden>No burn data yet</div>
+          </div>
+        </div>
+
         <div class="gallery gallery--desktop trading-featured">
           <div class="gallery-card gallery-card--trading-featured">
             <img
@@ -292,7 +304,7 @@
       </footer>
     </main>
 
-    <script type="module" src="/static/app.js?v=20260402"></script>
+    <script type="module" src="/static/app.js?v=20260426"></script>
   </body>
 </html>
 

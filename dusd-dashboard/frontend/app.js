@@ -93,6 +93,235 @@ let burnItems = [];
 let showAllBurns = false;
 const BURNS_PREVIEW = 8;
 
+/** Plot geometry for daily burn chart hover (desktop). */
+let dailyBurnPlotState = null;
+
+function fmtChartAxisY(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return "0";
+  const a = Math.abs(x);
+  if (a >= 1e9) return `${(x / 1e9).toFixed(2)}B`;
+  if (a >= 1e6) return `${(x / 1e6).toFixed(2)}M`;
+  if (a >= 1e3) return `${(x / 1e3).toFixed(2)}K`;
+  return fmtNum(x, x >= 100 ? 0 : 2);
+}
+
+function formatDayLabel(ymd) {
+  if (!ymd || typeof ymd !== "string") return "—";
+  const [y, m, d] = ymd.split("-").map(Number);
+  if (!y || !m || !d) return ymd;
+  try {
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+  } catch {
+    return ymd;
+  }
+}
+
+function buildDailyBurnLinePath(xs, ys) {
+  if (xs.length === 0) return "";
+  if (xs.length === 1) return `M ${xs[0]} ${ys[0]}`;
+  const n = xs.length;
+  let d = `M ${xs[0]} ${ys[0]}`;
+  for (let i = 0; i < n - 1; i++) {
+    const x0 = xs[i];
+    const y0 = ys[i];
+    const x1 = xs[i + 1];
+    const y1 = ys[i + 1];
+    const c1x = x0 + (x1 - x0) / 3;
+    const c2x = x1 - (x1 - x0) / 3;
+    d += ` C ${c1x} ${y0}, ${c2x} ${y1}, ${x1} ${y1}`;
+  }
+  return d;
+}
+
+function setupDailyBurnInteractions() {
+  const svg = document.getElementById("dailyBurnSvg");
+  const body = svg?.closest(".daily-burn-panel__body");
+  const tip = document.getElementById("dailyBurnTooltip");
+  if (!svg || !body || !tip || body.dataset.hoverBound === "1") return;
+  body.dataset.hoverBound = "1";
+  body.addEventListener("mousemove", (e) => {
+    if (!dailyBurnPlotState || !dailyBurnPlotState.pts?.length) {
+      tip.hidden = true;
+      return;
+    }
+    const { pts } = dailyBurnPlotState;
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    const cur = pt.matrixTransform(ctm.inverse());
+    let best = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < pts.length; i++) {
+      const dx = cur.x - pts[i].x;
+      const dist = Math.abs(dx);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = i;
+      }
+    }
+    const p = pts[best];
+    tip.textContent = `${formatDayLabel(p.day)} · ${fmtNum(p.v, 4)} DUSD`;
+    tip.hidden = false;
+    const bodyRect = body.getBoundingClientRect();
+    const rect = svg.getBoundingClientRect();
+    const vb = svg.viewBox?.baseVal;
+    if (!vb || !vb.width) return;
+    const sx = rect.left + (p.x / vb.width) * rect.width - bodyRect.left;
+    const sy = rect.top + (p.y / vb.height) * rect.height - bodyRect.top;
+    tip.style.left = `${sx}px`;
+    tip.style.top = `${sy}px`;
+  });
+  body.addEventListener("mouseleave", () => {
+    tip.hidden = true;
+  });
+}
+
+function renderDailyBurnChart(points) {
+  const svg = document.getElementById("dailyBurnSvg");
+  const emptyEl = document.getElementById("dailyBurnEmpty");
+  const tip = document.getElementById("dailyBurnTooltip");
+  if (!svg) return;
+  dailyBurnPlotState = null;
+  if (tip) tip.hidden = true;
+  svg.innerHTML = "";
+
+  const raw = Array.isArray(points) ? points : [];
+  const cleaned = raw
+    .map((p) => ({
+      day: p.day,
+      v: p.total_ui == null ? NaN : Number(p.total_ui),
+    }))
+    .filter((p) => p.day && Number.isFinite(p.v));
+
+  if (!cleaned.length) {
+    if (emptyEl) emptyEl.hidden = false;
+    return;
+  }
+  if (emptyEl) emptyEl.hidden = true;
+
+  const W = 800;
+  const H = 240;
+  const padL = 54;
+  const padR = 14;
+  const padT = 12;
+  const padB = 40;
+  const gw = W - padL - padR;
+  const gh = H - padT - padB;
+  const maxV = Math.max(...cleaned.map((p) => p.v), 1e-12);
+  const minV = 0;
+  const n = cleaned.length;
+  const xs = cleaned.map((_, i) => (n === 1 ? padL + gw / 2 : padL + (gw * i) / (n - 1)));
+  const ys = cleaned.map((p) => padT + gh - ((p.v - minV) / (maxV - minV)) * gh * 0.92);
+
+  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+  const filter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
+  filter.setAttribute("id", "dailyBurnGlow");
+  filter.setAttribute("x", "-25%");
+  filter.setAttribute("y", "-25%");
+  filter.setAttribute("width", "150%");
+  filter.setAttribute("height", "150%");
+  const blur = document.createElementNS("http://www.w3.org/2000/svg", "feGaussianBlur");
+  blur.setAttribute("in", "SourceGraphic");
+  blur.setAttribute("stdDeviation", "2");
+  blur.setAttribute("result", "blur");
+  const merge = document.createElementNS("http://www.w3.org/2000/svg", "feMerge");
+  const mn1 = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
+  mn1.setAttribute("in", "blur");
+  const mn2 = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
+  mn2.setAttribute("in", "SourceGraphic");
+  merge.appendChild(mn1);
+  merge.appendChild(mn2);
+  filter.appendChild(blur);
+  filter.appendChild(merge);
+  defs.appendChild(filter);
+  svg.appendChild(defs);
+
+  const axisColor = "rgba(255,255,255,.22)";
+  const tickColor = "rgba(255,255,255,.38)";
+  const baseline = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  baseline.setAttribute("x1", String(padL));
+  baseline.setAttribute("x2", String(W - padR));
+  baseline.setAttribute("y1", String(padT + gh));
+  baseline.setAttribute("y2", String(padT + gh));
+  baseline.setAttribute("stroke", axisColor);
+  baseline.setAttribute("stroke-width", "1");
+  svg.appendChild(baseline);
+
+  const xLabels = [[xs[0], cleaned[0].day]];
+  if (n > 2) {
+    const mid = Math.floor(n / 2);
+    xLabels.push([xs[mid], cleaned[mid].day]);
+  }
+  if (n > 1) {
+    xLabels.push([xs[n - 1], cleaned[n - 1].day]);
+  }
+  for (const [lx, dayStr] of xLabels) {
+    const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    t.setAttribute("x", String(lx));
+    t.setAttribute("y", String(H - 10));
+    t.setAttribute("fill", tickColor);
+    t.setAttribute("font-size", "11");
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("font-family", "system-ui, Segoe UI, sans-serif");
+    t.textContent = formatDayLabel(dayStr);
+    svg.appendChild(t);
+  }
+
+  const yticks = [minV, maxV * 0.5, maxV];
+  yticks.forEach((yv, i) => {
+    const ly = padT + gh - ((yv - minV) / (maxV - minV)) * gh * 0.92;
+    const yt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    yt.setAttribute("x", String(padL - 8));
+    yt.setAttribute("y", String(ly + 4));
+    yt.setAttribute("fill", tickColor);
+    yt.setAttribute("font-size", "11");
+    yt.setAttribute("text-anchor", "end");
+    yt.setAttribute("font-family", "system-ui, Segoe UI, sans-serif");
+    yt.textContent = fmtChartAxisY(yv);
+    svg.appendChild(yt);
+  });
+
+  const lineD = buildDailyBurnLinePath(xs, ys);
+  const glowPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  glowPath.setAttribute("d", lineD);
+  glowPath.setAttribute("fill", "none");
+  glowPath.setAttribute("stroke", "#ff5a14");
+  glowPath.setAttribute("stroke-width", "5");
+  glowPath.setAttribute("stroke-linecap", "round");
+  glowPath.setAttribute("stroke-linejoin", "round");
+  glowPath.setAttribute("opacity", "0.35");
+  glowPath.setAttribute("filter", "url(#dailyBurnGlow)");
+  svg.appendChild(glowPath);
+
+  const linePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  linePath.setAttribute("d", lineD);
+  linePath.setAttribute("fill", "none");
+  linePath.setAttribute("stroke", "#ff5a14");
+  linePath.setAttribute("stroke-width", "2.25");
+  linePath.setAttribute("stroke-linecap", "round");
+  linePath.setAttribute("stroke-linejoin", "round");
+  svg.appendChild(linePath);
+
+  dailyBurnPlotState = {
+    pts: cleaned.map((p, i) => ({ day: p.day, v: p.v, x: xs[i], y: ys[i] })),
+  };
+  setupDailyBurnInteractions();
+}
+
+async function loadDailyBurnsChart() {
+  if (!document.getElementById("dailyBurnSvg")) return;
+  try {
+    const data = await getJson("/api/burns/daily?days=90");
+    renderDailyBurnChart(data.points);
+  } catch {
+    renderDailyBurnChart([]);
+  }
+}
+
 function fmtIso(ts) {
   if (!ts || !Number.isFinite(Number(ts))) return "—";
   return new Date(Number(ts) * 1000).toISOString().replace(".000Z", "Z");
@@ -380,6 +609,7 @@ async function boot() {
   await loadBurnWindow();
   await loadTradingWindow();
   await loadBurns();
+  await loadDailyBurnsChart();
 }
 
 boot().catch(() => {});
