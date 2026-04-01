@@ -831,11 +831,20 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
     padding:7px 8px;
   }
   .trading-layout .grid-trade .mini .k{
-    font-size:10px;
+    font-size:12px;
   }
   .trading-layout .grid-trade .mini .v{
     margin-top:2px;
-    font-size:13px;
+    font-size:17px;
+    font-weight:600;
+  }
+  .trading-layout .grid-trade .mini .metric-inline-primary{
+    font-size:17px;
+    font-weight:700;
+  }
+  .trading-layout .grid-trade .mini .metric-inline-chg{
+    font-size:12px;
+    font-weight:600;
   }
   .trading-layout .grid-trade a.trade-action-card{
     padding:6px 8px;
