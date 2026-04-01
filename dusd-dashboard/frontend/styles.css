@@ -587,7 +587,6 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
   object-fit: contain;
   object-position: center;
   background: transparent;
-  filter: saturate(1.04) contrast(1.02);
 }
 .gallery-card{
   border:1px solid var(--line);
@@ -611,7 +610,9 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
   height:200px;
   object-fit:cover;
   object-position:center;
-  filter:saturate(1.05) contrast(1.03);
+}
+.gallery-card img{
+  filter:brightness(0.95) saturate(0.95);
 }
 
 .btn{
