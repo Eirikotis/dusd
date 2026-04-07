@@ -974,6 +974,12 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
 }
 
 @media (max-width: 640px){
+  .brand .sub{
+    font-size:10.5px;
+    line-height:1.35;
+    overflow-wrap:anywhere;
+    max-width:100%;
+  }
   .mascot-right{ display:none; }
   .gallery--desktop{
     display:none !important;
