@@ -304,7 +304,11 @@ function renderDailyBurnChart(points) {
   if (!svg) return;
   dailyBurnPlotState = null;
   if (tip) tip.hidden = true;
-  svg.innerHTML = "";
+
+  const compact =
+    typeof window.matchMedia !== "undefined" && window.matchMedia("(max-width: 980px)").matches;
+  const narrowMobile =
+    typeof window.matchMedia !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
 
   const raw = Array.isArray(points) ? points : [];
   const cleaned = raw
@@ -315,23 +319,24 @@ function renderDailyBurnChart(points) {
     .filter((p) => p.day && Number.isFinite(p.v) && !DAILY_BURN_CHART_EXCLUDED_DAYS.has(p.day));
 
   if (!cleaned.length) {
+    svg.innerHTML = "";
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     return;
   }
 
-  const compact =
-    typeof window.matchMedia !== "undefined" && window.matchMedia("(max-width: 980px)").matches;
-  const narrowMobile =
-    typeof window.matchMedia !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
+  /* Mobile: fill fixed-height box (meet + wide viewBox leaves vertical letterboxing). */
+  svg.setAttribute("preserveAspectRatio", narrowMobile ? "none" : "xMidYMid meet");
+  svg.innerHTML = "";
 
   const W = 800;
   const H = 240;
-  const padL = narrowMobile ? 40 : compact ? 46 : 54;
-  const padR = narrowMobile ? 8 : compact ? 10 : 14;
-  const padT = narrowMobile ? 7 : compact ? 10 : 12;
-  const padB = narrowMobile ? 22 : compact ? 34 : 40;
-  const plotVertFrac = narrowMobile ? 0.96 : 0.92;
-  const xLabelY = narrowMobile ? H - 5 : H - 10;
-  const yLabelInset = narrowMobile ? 4 : 8;
+  const padL = narrowMobile ? 32 : compact ? 46 : 54;
+  const padR = narrowMobile ? 6 : compact ? 10 : 14;
+  const padT = narrowMobile ? 4 : compact ? 10 : 12;
+  const padB = narrowMobile ? 13 : compact ? 34 : 40;
+  const plotVertFrac = narrowMobile ? 0.995 : 0.92;
+  const xLabelY = narrowMobile ? H - 2 : H - 10;
+  const yLabelInset = narrowMobile ? 3 : 8;
   const gw = W - padL - padR;
   const gh = H - padT - padB;
   const maxV = Math.max(...cleaned.map((p) => p.v), 1e-12);

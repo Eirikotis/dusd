@@ -885,11 +885,12 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
     margin:0;
   }
   .trading-layout .daily-burn-panel__svg{
+    display:block;
     width:100%;
+    flex-shrink:0;
     height:clamp(220px, 56vw, 260px);
     min-height:220px;
     max-height:260px;
-    flex-shrink:0;
   }
 }
 
