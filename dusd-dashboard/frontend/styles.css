@@ -881,16 +881,17 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
     gap:6px;
   }
   .trading-layout .daily-burn-panel__body{
-    padding:2px 6px 3px;
+    padding:4px 8px 8px;
     margin:0;
   }
   .trading-layout .daily-burn-panel__svg{
     display:block;
     width:100%;
     flex-shrink:0;
-    height:clamp(220px, 56vw, 260px);
-    min-height:220px;
-    max-height:260px;
+    height:auto;
+    max-width:100%;
+    min-height:200px;
+    max-height:245px;
   }
 }
 

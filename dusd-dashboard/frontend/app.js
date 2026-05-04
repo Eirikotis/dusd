@@ -320,31 +320,44 @@ function renderDailyBurnChart(points) {
 
   if (!cleaned.length) {
     svg.innerHTML = "";
+    svg.setAttribute("viewBox", "0 0 800 240");
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     return;
   }
 
-  /* Mobile: fill fixed-height box (meet + wide viewBox leaves vertical letterboxing). */
-  svg.setAttribute("preserveAspectRatio", narrowMobile ? "none" : "xMidYMid meet");
+  /* Mobile: taller viewBox + meet → ~230px tall plot on narrow widths without stretch/clipping. */
+  const bodyEl = svg.closest(".daily-burn-panel__body");
+  let H = 240;
+  if (narrowMobile) {
+    const rect = bodyEl?.getBoundingClientRect();
+    const targetDisplayPx = 228;
+    const innerW = rect && rect.width > 48 ? rect.width - 18 : 0;
+    const bw = innerW > 0 ? innerW : 320;
+    H = Math.round((800 * targetDisplayPx) / Math.max(260, bw));
+    H = Math.min(520, Math.max(300, H));
+  }
+  svg.setAttribute("viewBox", `0 0 800 ${H}`);
+  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
   svg.innerHTML = "";
 
   const W = 800;
-  const H = 240;
-  const padL = narrowMobile ? 32 : compact ? 46 : 54;
-  const padR = narrowMobile ? 6 : compact ? 10 : 14;
-  const padT = narrowMobile ? 4 : compact ? 10 : 12;
-  const padB = narrowMobile ? 13 : compact ? 34 : 40;
-  const plotVertFrac = narrowMobile ? 0.995 : 0.92;
-  const xLabelY = narrowMobile ? H - 2 : H - 10;
-  const yLabelInset = narrowMobile ? 3 : 8;
+  const padL = narrowMobile ? 52 : compact ? 46 : 54;
+  const padR = narrowMobile ? 12 : compact ? 10 : 14;
+  const padT = narrowMobile ? 14 : compact ? 10 : 12;
+  const padB = narrowMobile ? 38 : compact ? 34 : 40;
   const gw = W - padL - padR;
   const gh = H - padT - padB;
   const maxV = Math.max(...cleaned.map((p) => p.v), 1e-12);
   const minV = 0;
+  /* Slight headroom above peak; still beginAtZero (minV = 0). */
+  const yScaleMax = narrowMobile ? maxV * 1.06 : maxV;
+  const plotVertFrac = narrowMobile ? 0.82 : 0.92;
+  const xLabelY = narrowMobile ? H - 12 : H - 10;
+  const yLabelInset = narrowMobile ? 10 : 8;
   const n = cleaned.length;
   const xs = cleaned.map((_, i) => (n === 1 ? padL + gw / 2 : padL + (gw * i) / (n - 1)));
   const ys = cleaned.map(
-    (p) => padT + gh - ((p.v - minV) / (maxV - minV)) * gh * plotVertFrac,
+    (p) => padT + gh - ((p.v - minV) / (yScaleMax - minV)) * gh * plotVertFrac,
   );
 
   const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
@@ -381,7 +394,7 @@ function renderDailyBurnChart(points) {
   baseline.setAttribute("stroke-width", "1");
   svg.appendChild(baseline);
 
-  const xTickFs = narrowMobile ? "9" : compact ? "10" : "11";
+  const xTickFs = narrowMobile ? "11" : compact ? "10" : "11";
 
   let xLabels;
   if (compact && n >= 8) {
@@ -411,9 +424,9 @@ function renderDailyBurnChart(points) {
   }
 
   const yticks = compact ? [minV, maxV] : [minV, maxV * 0.5, maxV];
-  const yTickFs = narrowMobile ? "9" : compact ? "10" : "11";
+  const yTickFs = narrowMobile ? "11" : compact ? "10" : "11";
   yticks.forEach((yv, i) => {
-    const ly = padT + gh - ((yv - minV) / (maxV - minV)) * gh * plotVertFrac;
+    const ly = padT + gh - ((yv - minV) / (yScaleMax - minV)) * gh * plotVertFrac;
     const yt = document.createElementNS("http://www.w3.org/2000/svg", "text");
     yt.setAttribute("x", String(padL - yLabelInset));
     yt.setAttribute("y", String(ly + 4));
@@ -425,8 +438,8 @@ function renderDailyBurnChart(points) {
     svg.appendChild(yt);
   });
 
-  const lineStroke = narrowMobile ? 3.1 : compact ? 2.85 : 2.25;
-  const glowStroke = narrowMobile ? 6 : compact ? 5.5 : 5;
+  const lineStroke = narrowMobile ? 2.7 : compact ? 2.85 : 2.25;
+  const glowStroke = narrowMobile ? 5.25 : compact ? 5.5 : 5;
   const lineD = buildDailyBurnLinePath(xs, ys);
   const glowPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   glowPath.setAttribute("d", lineD);
