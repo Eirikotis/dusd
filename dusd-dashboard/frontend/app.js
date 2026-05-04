@@ -196,14 +196,59 @@ const DAILY_BURN_CHART_EXCLUDED_DAYS = new Set(["2026-03-10"]);
 /** Plot geometry for daily burn chart hover. */
 let dailyBurnPlotState = null;
 
-function fmtChartAxisY(n) {
-  const x = Number(n);
+/** Daily burn Y-axis: compact K / M (e.g. 20.43K, 1.2M). */
+function fmtChartAxisYBurn(v) {
+  const x = Number(v);
   if (!Number.isFinite(x)) return "0";
-  const a = Math.abs(x);
-  if (a >= 1e9) return `${(x / 1e9).toFixed(2)}B`;
-  if (a >= 1e6) return `${(x / 1e6).toFixed(2)}M`;
-  if (a >= 1e3) return `${(x / 1e3).toFixed(2)}K`;
-  return fmtNum(x, x >= 100 ? 0 : 2);
+  if (Math.abs(x) < 1e-12) return "0";
+  /** @param {number} n */
+  const trimNum = (n) => {
+    const t = n.toFixed(2);
+    return t.replace(/\.?0+$/, "");
+  };
+  const ax = Math.abs(x);
+  const sign = x < 0 ? "-" : "";
+  if (ax >= 1e9) return `${sign}${trimNum(ax / 1e9)}B`;
+  if (ax >= 1e6) return `${sign}${trimNum(ax / 1e6)}M`;
+  if (ax >= 1e3) return `${sign}${trimNum(ax / 1e3)}K`;
+  if (ax >= 1) return `${sign}${trimNum(ax)}`;
+  return `${sign}${trimNum(ax)}`;
+}
+
+/** X-axis date: "11 Mar" (UTC, en-GB). */
+function formatDayLabelAxis(ymd) {
+  if (!ymd || typeof ymd !== "string") return "—";
+  const [y, m, d] = ymd.split("-").map(Number);
+  if (!y || !m || !d) return ymd;
+  try {
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    return dt.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+  } catch {
+    return ymd;
+  }
+}
+
+/** Indices for x-axis ticks: 0/25/50/75/100% of range; mobile uses start/mid/end when narrow. */
+function dailyBurnXLabelIndices(n, sparseMobile) {
+  if (n <= 1) return [0];
+  if (sparseMobile) {
+    if (n === 2) return [0, 1];
+    return [0, Math.floor((n - 1) / 2), n - 1];
+  }
+  const fracs = [0, 0.25, 0.5, 0.75, 1];
+  const idxs = fracs.map((f) => Math.round(f * (n - 1)));
+  return [...new Set(idxs)].sort((a, b) => a - b);
+}
+
+function uniqueSortedYTicks(scaleMax, fracs) {
+  const eps = Math.max(Number(scaleMax) * 1e-9, 1e-12);
+  const raw = fracs.map((f) => f * scaleMax);
+  const out = [];
+  for (const yv of raw) {
+    if (out.length && Math.abs(yv - out[out.length - 1]) < eps) continue;
+    out.push(yv);
+  }
+  return out;
 }
 
 function formatDayLabel(ymd) {
@@ -341,7 +386,7 @@ function renderDailyBurnChart(points) {
   svg.innerHTML = "";
 
   const W = 800;
-  const padL = narrowMobile ? 52 : compact ? 46 : 54;
+  const padL = narrowMobile ? 58 : compact ? 46 : 54;
   const padR = narrowMobile ? 12 : compact ? 10 : 14;
   const padT = narrowMobile ? 14 : compact ? 10 : 12;
   const padB = narrowMobile ? 38 : compact ? 34 : 40;
@@ -396,21 +441,8 @@ function renderDailyBurnChart(points) {
 
   const xTickFs = narrowMobile ? "11" : compact ? "10" : "11";
 
-  let xLabels;
-  if (compact && n >= 8) {
-    xLabels = [
-      [xs[0], cleaned[0].day],
-      [xs[n - 1], cleaned[n - 1].day],
-    ];
-  } else {
-    xLabels = [[xs[0], cleaned[0].day]];
-    if (n > 2) {
-      xLabels.push([xs[Math.floor(n / 2)], cleaned[Math.floor(n / 2)].day]);
-    }
-    if (n > 1) {
-      xLabels.push([xs[n - 1], cleaned[n - 1].day]);
-    }
-  }
+  const xLabelIndices = dailyBurnXLabelIndices(n, narrowMobile);
+  const xLabels = xLabelIndices.map((i) => [xs[i], cleaned[i].day]);
   for (const [lx, dayStr] of xLabels) {
     const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
     t.setAttribute("x", String(lx));
@@ -419,12 +451,12 @@ function renderDailyBurnChart(points) {
     t.setAttribute("font-size", xTickFs);
     t.setAttribute("text-anchor", "middle");
     t.setAttribute("font-family", "system-ui, Segoe UI, sans-serif");
-    t.textContent = formatDayLabel(dayStr);
+    t.textContent = formatDayLabelAxis(dayStr);
     svg.appendChild(t);
   }
 
-  const yticks = compact ? [minV, maxV] : [minV, maxV * 0.5, maxV];
-  const yTickFs = narrowMobile ? "11" : compact ? "10" : "11";
+  const yticks = uniqueSortedYTicks(yScaleMax, [0, 0.25, 0.5, 0.75, 1]);
+  const yTickFs = narrowMobile ? "10" : compact ? "10" : "11";
   yticks.forEach((yv, i) => {
     const ly = padT + gh - ((yv - minV) / (yScaleMax - minV)) * gh * plotVertFrac;
     const yt = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -434,7 +466,7 @@ function renderDailyBurnChart(points) {
     yt.setAttribute("font-size", yTickFs);
     yt.setAttribute("text-anchor", "end");
     yt.setAttribute("font-family", "system-ui, Segoe UI, sans-serif");
-    yt.textContent = fmtChartAxisY(yv);
+    yt.textContent = fmtChartAxisYBurn(yv);
     svg.appendChild(yt);
   });
 
