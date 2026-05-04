@@ -193,7 +193,7 @@ const BURNS_PREVIEW = 8;
 /** Calendar days excluded only from Daily Burn chart display (e.g. single-day outlier). */
 const DAILY_BURN_CHART_EXCLUDED_DAYS = new Set(["2026-03-10"]);
 
-/** Plot geometry for daily burn chart hover (desktop). */
+/** Plot geometry for daily burn chart hover. */
 let dailyBurnPlotState = null;
 
 function fmtChartAxisY(n) {
@@ -318,12 +318,15 @@ function renderDailyBurnChart(points) {
     return;
   }
 
+  const compact =
+    typeof window.matchMedia !== "undefined" && window.matchMedia("(max-width: 980px)").matches;
+
   const W = 800;
   const H = 240;
-  const padL = 54;
-  const padR = 14;
-  const padT = 12;
-  const padB = 40;
+  const padL = compact ? 46 : 54;
+  const padR = compact ? 10 : 14;
+  const padT = compact ? 10 : 12;
+  const padB = compact ? 34 : 40;
   const gw = W - padL - padR;
   const gh = H - padT - padB;
   const maxV = Math.max(...cleaned.map((p) => p.v), 1e-12);
@@ -366,46 +369,58 @@ function renderDailyBurnChart(points) {
   baseline.setAttribute("stroke-width", "1");
   svg.appendChild(baseline);
 
-  const xLabels = [[xs[0], cleaned[0].day]];
-  if (n > 2) {
-    const mid = Math.floor(n / 2);
-    xLabels.push([xs[mid], cleaned[mid].day]);
-  }
-  if (n > 1) {
-    xLabels.push([xs[n - 1], cleaned[n - 1].day]);
+  const xTickFs = compact ? "10" : "11";
+
+  let xLabels;
+  if (compact && n >= 8) {
+    xLabels = [
+      [xs[0], cleaned[0].day],
+      [xs[n - 1], cleaned[n - 1].day],
+    ];
+  } else {
+    xLabels = [[xs[0], cleaned[0].day]];
+    if (n > 2) {
+      xLabels.push([xs[Math.floor(n / 2)], cleaned[Math.floor(n / 2)].day]);
+    }
+    if (n > 1) {
+      xLabels.push([xs[n - 1], cleaned[n - 1].day]);
+    }
   }
   for (const [lx, dayStr] of xLabels) {
     const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
     t.setAttribute("x", String(lx));
     t.setAttribute("y", String(H - 10));
     t.setAttribute("fill", tickColor);
-    t.setAttribute("font-size", "11");
+    t.setAttribute("font-size", xTickFs);
     t.setAttribute("text-anchor", "middle");
     t.setAttribute("font-family", "system-ui, Segoe UI, sans-serif");
     t.textContent = formatDayLabel(dayStr);
     svg.appendChild(t);
   }
 
-  const yticks = [minV, maxV * 0.5, maxV];
+  const yticks = compact ? [minV, maxV] : [minV, maxV * 0.5, maxV];
+  const yTickFs = compact ? "10" : "11";
   yticks.forEach((yv, i) => {
     const ly = padT + gh - ((yv - minV) / (maxV - minV)) * gh * 0.92;
     const yt = document.createElementNS("http://www.w3.org/2000/svg", "text");
     yt.setAttribute("x", String(padL - 8));
     yt.setAttribute("y", String(ly + 4));
     yt.setAttribute("fill", tickColor);
-    yt.setAttribute("font-size", "11");
+    yt.setAttribute("font-size", yTickFs);
     yt.setAttribute("text-anchor", "end");
     yt.setAttribute("font-family", "system-ui, Segoe UI, sans-serif");
     yt.textContent = fmtChartAxisY(yv);
     svg.appendChild(yt);
   });
 
+  const lineStroke = compact ? 2.85 : 2.25;
+  const glowStroke = compact ? 5.5 : 5;
   const lineD = buildDailyBurnLinePath(xs, ys);
   const glowPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   glowPath.setAttribute("d", lineD);
   glowPath.setAttribute("fill", "none");
   glowPath.setAttribute("stroke", "#ff5a14");
-  glowPath.setAttribute("stroke-width", "5");
+  glowPath.setAttribute("stroke-width", String(glowStroke));
   glowPath.setAttribute("stroke-linecap", "round");
   glowPath.setAttribute("stroke-linejoin", "round");
   glowPath.setAttribute("opacity", "0.35");
@@ -416,7 +431,7 @@ function renderDailyBurnChart(points) {
   linePath.setAttribute("d", lineD);
   linePath.setAttribute("fill", "none");
   linePath.setAttribute("stroke", "#ff5a14");
-  linePath.setAttribute("stroke-width", "2.25");
+  linePath.setAttribute("stroke-width", String(lineStroke));
   linePath.setAttribute("stroke-linecap", "round");
   linePath.setAttribute("stroke-linejoin", "round");
   svg.appendChild(linePath);
