@@ -7,6 +7,17 @@ const fmtNum = (x, digits = 2) => {
   }
 };
 
+/** Recent burns Amount column: grouped, always 2 decimal places. */
+function fmtBurnAmountDisplay(x) {
+  if (x === null || x === undefined || Number.isNaN(Number(x))) return "—";
+  const n = Number(x);
+  try {
+    return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  } catch {
+    return String(x);
+  }
+}
+
 const fmtNumFixed1 = (x) => {
   if (x === null || x === undefined || Number.isNaN(x)) return "N/A";
   try {
@@ -637,7 +648,12 @@ function renderBurnRows(items) {
     tdTs.textContent = burnRowTimestampFormatted(it);
 
     const tdAmt = document.createElement("td");
-    tdAmt.textContent = it.amount_ui === null ? "—" : fmtNum(it.amount_ui, 6);
+    if (it.amount_ui === null || it.amount_ui === undefined || Number.isNaN(Number(it.amount_ui))) {
+      tdAmt.textContent = "—";
+    } else {
+      tdAmt.className = "burn-amount-cell";
+      tdAmt.textContent = fmtBurnAmountDisplay(it.amount_ui);
+    }
 
     const tdSig = document.createElement("td");
     tdSig.appendChild(sigLink(it.signature));
