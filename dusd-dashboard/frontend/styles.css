@@ -874,6 +874,25 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
   }
 }
 
+/* Daily burn: larger plot + tighter chrome on phones (desktop unchanged ≥981px) */
+@media (max-width: 768px){
+  .trading-layout > .daily-burn-panel.card{
+    padding:10px 12px 10px;
+    gap:6px;
+  }
+  .trading-layout .daily-burn-panel__body{
+    padding:2px 6px 3px;
+    margin:0;
+  }
+  .trading-layout .daily-burn-panel__svg{
+    width:100%;
+    height:clamp(220px, 56vw, 260px);
+    min-height:220px;
+    max-height:260px;
+    flex-shrink:0;
+  }
+}
+
 @media (min-width: 981px){
   .container{
     max-width:1440px;

@@ -320,20 +320,27 @@ function renderDailyBurnChart(points) {
 
   const compact =
     typeof window.matchMedia !== "undefined" && window.matchMedia("(max-width: 980px)").matches;
+  const narrowMobile =
+    typeof window.matchMedia !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
 
   const W = 800;
   const H = 240;
-  const padL = compact ? 46 : 54;
-  const padR = compact ? 10 : 14;
-  const padT = compact ? 10 : 12;
-  const padB = compact ? 34 : 40;
+  const padL = narrowMobile ? 40 : compact ? 46 : 54;
+  const padR = narrowMobile ? 8 : compact ? 10 : 14;
+  const padT = narrowMobile ? 7 : compact ? 10 : 12;
+  const padB = narrowMobile ? 22 : compact ? 34 : 40;
+  const plotVertFrac = narrowMobile ? 0.96 : 0.92;
+  const xLabelY = narrowMobile ? H - 5 : H - 10;
+  const yLabelInset = narrowMobile ? 4 : 8;
   const gw = W - padL - padR;
   const gh = H - padT - padB;
   const maxV = Math.max(...cleaned.map((p) => p.v), 1e-12);
   const minV = 0;
   const n = cleaned.length;
   const xs = cleaned.map((_, i) => (n === 1 ? padL + gw / 2 : padL + (gw * i) / (n - 1)));
-  const ys = cleaned.map((p) => padT + gh - ((p.v - minV) / (maxV - minV)) * gh * 0.92);
+  const ys = cleaned.map(
+    (p) => padT + gh - ((p.v - minV) / (maxV - minV)) * gh * plotVertFrac,
+  );
 
   const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
   const filter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
@@ -369,7 +376,7 @@ function renderDailyBurnChart(points) {
   baseline.setAttribute("stroke-width", "1");
   svg.appendChild(baseline);
 
-  const xTickFs = compact ? "10" : "11";
+  const xTickFs = narrowMobile ? "9" : compact ? "10" : "11";
 
   let xLabels;
   if (compact && n >= 8) {
@@ -389,7 +396,7 @@ function renderDailyBurnChart(points) {
   for (const [lx, dayStr] of xLabels) {
     const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
     t.setAttribute("x", String(lx));
-    t.setAttribute("y", String(H - 10));
+    t.setAttribute("y", String(xLabelY));
     t.setAttribute("fill", tickColor);
     t.setAttribute("font-size", xTickFs);
     t.setAttribute("text-anchor", "middle");
@@ -399,11 +406,11 @@ function renderDailyBurnChart(points) {
   }
 
   const yticks = compact ? [minV, maxV] : [minV, maxV * 0.5, maxV];
-  const yTickFs = compact ? "10" : "11";
+  const yTickFs = narrowMobile ? "9" : compact ? "10" : "11";
   yticks.forEach((yv, i) => {
-    const ly = padT + gh - ((yv - minV) / (maxV - minV)) * gh * 0.92;
+    const ly = padT + gh - ((yv - minV) / (maxV - minV)) * gh * plotVertFrac;
     const yt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    yt.setAttribute("x", String(padL - 8));
+    yt.setAttribute("x", String(padL - yLabelInset));
     yt.setAttribute("y", String(ly + 4));
     yt.setAttribute("fill", tickColor);
     yt.setAttribute("font-size", yTickFs);
@@ -413,8 +420,8 @@ function renderDailyBurnChart(points) {
     svg.appendChild(yt);
   });
 
-  const lineStroke = compact ? 2.85 : 2.25;
-  const glowStroke = compact ? 5.5 : 5;
+  const lineStroke = narrowMobile ? 3.1 : compact ? 2.85 : 2.25;
+  const glowStroke = narrowMobile ? 6 : compact ? 5.5 : 5;
   const lineD = buildDailyBurnLinePath(xs, ys);
   const glowPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   glowPath.setAttribute("d", lineD);
