@@ -33,6 +33,17 @@ const fmtUsd = (x, digits = 6) => {
   return `$${n.toLocaleString(undefined, { maximumFractionDigits: d })}`;
 };
 
+/** Trading section volume (24h / 7d / 30d): exactly one decimal, grouped. */
+const fmtUsdTradingVolume = (x) => {
+  if (x === null || x === undefined || Number.isNaN(Number(x))) return "N/A";
+  const n = Number(x);
+  try {
+    return `$${n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`;
+  } catch {
+    return `$${String(x)}`;
+  }
+};
+
 const fmtPct = (x, digits = 2) => {
   if (x === null || x === undefined || Number.isNaN(x)) return "N/A";
   const n = Number(x);
@@ -58,6 +69,81 @@ const fmtDuration = (seconds) => {
   if (years <= 0) return `${months}m`;
   return `${years}y ${months}m`;
 };
+
+const TZ_NY = "America/New_York";
+
+/**
+ * Parse API values: ISO-8601 strings or unix seconds (number).
+ * @param {string | number | null | undefined} value
+ * @returns {Date | null}
+ */
+function parseTimestampInput(value) {
+  if (value == null || value === "") return null;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return new Date(value * 1000);
+  }
+  if (typeof value === "string") {
+    const s = value.trim();
+    if (!s) return null;
+    if (/^\d+$/.test(s)) {
+      const n = parseInt(s, 10);
+      if (!Number.isFinite(n)) return null;
+      return new Date(n * 1000);
+    }
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
+function _pad2(n) {
+  return String(n).padStart(2, "0");
+}
+
+/**
+ * UK-style date + 24h UTC with America/New_York secondary time.
+ * Secondary label is always "EST"; wall-clock reflects DST.
+ * @param {string | number | null | undefined} value
+ * @returns {string}
+ */
+function fmtTimestampDual(value) {
+  const d = parseTimestampInput(value);
+  if (!d) return "—";
+
+  const datePart = d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+
+  const utcH = _pad2(d.getUTCHours());
+  const utcM = _pad2(d.getUTCMinutes());
+
+  const nyFmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone: TZ_NY,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts = nyFmt.formatToParts(d);
+  let nyH = "00";
+  let nyM = "00";
+  for (const p of parts) {
+    if (p.type === "hour") nyH = _pad2(Number.parseInt(p.value, 10));
+    if (p.type === "minute") nyM = _pad2(Number.parseInt(p.value, 10));
+  }
+
+  return `${datePart}, ${utcH}:${utcM} UTC (${nyH}:${nyM} EST)`;
+}
+
+/** Prefer ISO from API when parseable; else unix `timestamp`. */
+function burnRowTimestampFormatted(it) {
+  const iso = it.datetime_utc != null && String(it.datetime_utc).trim() !== "" ? it.datetime_utc : null;
+  if (iso && parseTimestampInput(iso)) return fmtTimestampDual(iso);
+  if (it.timestamp != null && it.timestamp !== "") return fmtTimestampDual(it.timestamp);
+  return "—";
+}
 
 async function getJson(path) {
   const r = await fetch(path, { headers: { "cache-control": "no-cache" } });
@@ -93,6 +179,9 @@ let burnItems = [];
 let showAllBurns = false;
 const BURNS_PREVIEW = 8;
 
+/** Calendar days excluded only from Daily Burn chart display (e.g. single-day outlier). */
+const DAILY_BURN_CHART_EXCLUDED_DAYS = new Set(["2026-03-10"]);
+
 /** Plot geometry for daily burn chart hover (desktop). */
 let dailyBurnPlotState = null;
 
@@ -113,6 +202,24 @@ function formatDayLabel(ymd) {
   try {
     const dt = new Date(Date.UTC(y, m - 1, d));
     return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+  } catch {
+    return ymd;
+  }
+}
+
+/** UK-style calendar day from YYYY-MM-DD (UTC), e.g. 3 May 2026 */
+function formatCalendarDayUk(ymd) {
+  if (!ymd || typeof ymd !== "string") return "—";
+  const [y, m, d] = ymd.split("-").map(Number);
+  if (!y || !m || !d) return ymd;
+  try {
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    return dt.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
   } catch {
     return ymd;
   }
@@ -164,7 +271,7 @@ function setupDailyBurnInteractions() {
       }
     }
     const p = pts[best];
-    tip.textContent = `${formatDayLabel(p.day)} · ${fmtNum(p.v, 4)} DUSD`;
+    tip.textContent = `${formatCalendarDayUk(p.day)} · ${fmtNum(p.v, 4)} DUSD`;
     tip.hidden = false;
     const bodyRect = body.getBoundingClientRect();
     const rect = svg.getBoundingClientRect();
@@ -194,7 +301,7 @@ function renderDailyBurnChart(points) {
       day: p.day,
       v: p.total_ui == null ? NaN : Number(p.total_ui),
     }))
-    .filter((p) => p.day && Number.isFinite(p.v));
+    .filter((p) => p.day && Number.isFinite(p.v) && !DAILY_BURN_CHART_EXCLUDED_DAYS.has(p.day));
 
   if (!cleaned.length) {
     return;
@@ -319,11 +426,6 @@ async function loadDailyBurnsChart() {
   }
 }
 
-function fmtIso(ts) {
-  if (!ts || !Number.isFinite(Number(ts))) return "—";
-  return new Date(Number(ts) * 1000).toISOString().replace(".000Z", "Z");
-}
-
 function setActiveButtons(attr, value) {
   document.querySelectorAll(`button[${attr}]`).forEach((b) => {
     b.classList.toggle("is-active", b.getAttribute(attr) === value);
@@ -350,7 +452,7 @@ async function loadCurrent() {
     els.supplyRing.style.setProperty("--burnedPct", `${clamped}%`);
   }
   if (els.lastUpdatedPill) {
-    els.lastUpdatedPill.textContent = `last updated: ${fmtIso(cur.captured_at_ts)}`;
+    els.lastUpdatedPill.textContent = `last updated: ${fmtTimestampDual(cur.captured_at_ts)}`;
   }
   return cur;
 }
@@ -476,7 +578,7 @@ async function loadTradingWindow() {
     tradeWindow === "24h" ? trading24hPriceChangePct(t) : t.price_change_pct;
   setTradingMetricLine(els.priceUsd, pMain, priceChg);
 
-  const volMain = t.volume === null || t.volume === undefined ? "N/A" : fmtUsd(t.volume, 2);
+  const volMain = t.volume === null || t.volume === undefined ? "N/A" : fmtUsdTradingVolume(t.volume);
   setTradingMetricLine(els.tradeVolume, volMain, t.volume_change_pct);
 
   const lMain = t.liquidity_usd === null || t.liquidity_usd === undefined ? "N/A" : fmtUsd(t.liquidity_usd, 2);
@@ -532,7 +634,7 @@ function renderBurnRows(items) {
     const tr = document.createElement("tr");
 
     const tdTs = document.createElement("td");
-    tdTs.textContent = it.datetime_utc || (it.timestamp ? new Date(it.timestamp * 1000).toISOString() : "—");
+    tdTs.textContent = burnRowTimestampFormatted(it);
 
     const tdAmt = document.createElement("td");
     tdAmt.textContent = it.amount_ui === null ? "—" : fmtNum(it.amount_ui, 6);
