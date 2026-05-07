@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Sequence
 from typing import Any
 
 from .clients.dexscreener import DexScreenerClient
@@ -14,6 +15,106 @@ WINDOWS: dict[str, int] = {
     "7d": 7 * 24 * 3600,
     "30d": 30 * 24 * 3600,
 }
+
+
+def _hour_floor(ts: int) -> int:
+    """UTC hour-aligned bucket boundary (SQLite snapshot hour_ts convention)."""
+
+    return int(ts - (ts % 3600))
+
+
+def _dex_activity_estimate_from_snapshots(
+    snapshots: Sequence[dict[str, Any]],
+    *,
+    window_seconds: float,
+    label: str = "",
+) -> dict[str, Any]:
+    """Estimate period totals from hourly Dex-derived rolling-*24h* fields.
+
+    Dex store ``volume_24h`` / ``buys_24h`` / ``sells_24h`` reported at each hourly capture.
+    Exact period sums would require swap-level data; absent that, approximate each rolling
+    field as representative of USD volume/trade-intensity across the horizon, multiply the
+    *mean* sampled value by the calendar length of the period (matching pre-existing 7d/30d UX).
+
+    This is used only when ``window_key`` is not ``24h`` — the 24h window uses successive
+    two-point rolling-24h values (current vs ~24h ago) from snapshots/live Dex.
+    """
+    rows = [dict(r) if not isinstance(r, dict) else r for r in snapshots]
+    days = window_seconds / 86400.0
+    empty = {"volume": None, "buys": None, "sells": None, "trades": None, "samples": 0}
+    if not rows:
+        return empty | {"explain": label or "dex_snapshot_mean_x_days_approx"}
+
+    vols = [
+        float(r["volume_24h"])
+        for r in rows
+        if r.get("volume_24h") is not None and _is_finite_float(r["volume_24h"])
+    ]
+    buy_ns = [
+        float(int(r["buys_24h"]))
+        for r in rows
+        if r.get("buys_24h") is not None and int(r["buys_24h"] or 0) >= 0
+    ]
+    sell_ns = [
+        float(int(r["sells_24h"]))
+        for r in rows
+        if r.get("sells_24h") is not None and int(r["sells_24h"] or 0) >= 0
+    ]
+    txn_vals: list[float] = []
+    for r in rows:
+        b_, s_ = r.get("buys_24h"), r.get("sells_24h")
+        if b_ is None and s_ is None:
+            continue
+        txn_vals.append(float(int(b_ or 0) + int(s_ or 0)))
+
+    volume_est = (sum(vols) / len(vols)) * days if vols else None
+    buys_est = (sum(buy_ns) / len(buy_ns)) * days if buy_ns else None
+    sells_est = (sum(sell_ns) / len(sell_ns)) * days if sell_ns else None
+    trades_est = (sum(txn_vals) / len(txn_vals)) * days if txn_vals else None
+    out = {
+        "volume": volume_est,
+        "buys": buys_est,
+        "sells": sells_est,
+        "trades": trades_est,
+        "samples": len(rows),
+        "explain": label or "dex_snapshot_mean_x_days_approx",
+    }
+    return out
+
+
+def _fetch_snapshots_for_activity_window(
+    conn, *, dusd_mint: str, period_begin_ts: int, period_until_ts_exclusive: int | None
+) -> list[dict[str, Any]]:
+    """Snapshots with ``hour_ts`` in [_hour_floor(period_begin), period_until_exclusive)."""
+
+    lo = _hour_floor(period_begin_ts)
+    if period_until_ts_exclusive is None:
+        rows = conn.execute(
+            """
+            SELECT * FROM token_snapshots_hourly
+            WHERE dusd_mint = ? AND hour_ts >= ?
+            ORDER BY hour_ts ASC
+            """,
+            (dusd_mint, lo),
+        ).fetchall()
+    else:
+        hi_ex = _hour_floor(period_until_ts_exclusive)
+        rows = conn.execute(
+            """
+            SELECT * FROM token_snapshots_hourly
+            WHERE dusd_mint = ? AND hour_ts >= ? AND hour_ts < ?
+            ORDER BY hour_ts ASC
+            """,
+            (dusd_mint, lo, hi_ex),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def _is_finite_float(v: Any) -> bool:
+    try:
+        return float("-inf") < float(v) < float("inf")
+    except Exception:
+        return False
 
 
 def _now_ts() -> int:
@@ -198,22 +299,83 @@ def trading_metrics(
     liquidity_change_pct = _pct_change(liq_now, liq_then)
 
     vol_24h_now = latest.get("volume_24h")
-    volume_then = past.get("volume_24h") if past else None
-    volume_change_pct = _pct_change(
-        float(vol_24h_now) if vol_24h_now is not None else None,
-        float(volume_then) if volume_then is not None else None,
-    )
-    trades_then_ct: int | None = None
-    if past:
-        trades_then_ct = _txns_sum_from_snap(past)
-    trades_change_pct = _pct_change(
-        float(trades_24h) if trades_24h is not None else None,
-        float(trades_then_ct) if trades_then_ct is not None else None,
-    )
+    # Activity metrics (volume/trades/buys/sells) use period-over-period rolling windows aligned to window_key.
+    # Field names (`buys_24h`, …) remain legacy Dex labels; percentages follow the selected window semantics.
+    est_total: float | None = None
+    trades_count: float | None = None
+    volume_change_pct: float | None = None
+    trades_change_pct: float | None = None
+    buys_change_pct: float | None = None
+    sells_change_pct: float | None = None
+
+    if window_key == "24h":
+        vol_curr = (
+            float(live_snap["volume_24h"])
+            if live_snap is not None and live_snap.get("volume_24h") is not None
+            else (float(vol_24h_now) if vol_24h_now is not None else None)
+        )
+        est_total = vol_curr
+        buys_curr = (
+            float(int(live_snap["buys_24h"]))
+            if live_snap is not None and live_snap.get("buys_24h") is not None
+            else (float(int(latest["buys_24h"])) if latest.get("buys_24h") is not None else None)
+        )
+        sells_curr = (
+            float(int(live_snap["sells_24h"]))
+            if live_snap is not None and live_snap.get("sells_24h") is not None
+            else (float(int(latest["sells_24h"])) if latest.get("sells_24h") is not None else None)
+        )
+        trades_curr = float(trades_24h) if trades_24h is not None else None
+        trades_count = trades_curr
+
+        vol_prev_f = (
+            float(past["volume_24h"]) if past and past.get("volume_24h") is not None else None
+        )
+        buys_prev_f = (
+            float(int(past["buys_24h"])) if past and past.get("buys_24h") is not None else None
+        )
+        sells_prev_f = (
+            float(int(past["sells_24h"])) if past and past.get("sells_24h") is not None else None
+        )
+        trades_prev_f = (
+            float(_txns_sum_from_snap(past)) if past and _txns_sum_from_snap(past) is not None else None
+        )
+
+        volume_change_pct = _pct_change(vol_curr, vol_prev_f)
+        trades_change_pct = _pct_change(trades_curr, trades_prev_f)
+        buys_change_pct = _pct_change(buys_curr, buys_prev_f)
+        sells_change_pct = _pct_change(sells_curr, sells_prev_f)
+    else:
+        curr_snapshots = _fetch_snapshots_for_activity_window(
+            conn, dusd_mint=dusd_mint, period_begin_ts=start, period_until_ts_exclusive=None
+        )
+        prev_snapshots = _fetch_snapshots_for_activity_window(
+            conn,
+            dusd_mint=dusd_mint,
+            period_begin_ts=now - (2 * window_s),
+            period_until_ts_exclusive=start,
+        )
+        curr_act = _dex_activity_estimate_from_snapshots(
+            curr_snapshots,
+            window_seconds=float(window_s),
+            label=f"{window_key}_current_estimate",
+        )
+        prev_act = _dex_activity_estimate_from_snapshots(
+            prev_snapshots,
+            window_seconds=float(window_s),
+            label=f"{window_key}_previous_estimate",
+        )
+        est_total = curr_act["volume"]
+        trades_count = curr_act["trades"]
+        volume_change_pct = _pct_change(curr_act["volume"], prev_act["volume"])
+        trades_change_pct = _pct_change(curr_act["trades"], prev_act["trades"])
+        buys_change_pct = _pct_change(curr_act["buys"], prev_act["buys"])
+        sells_change_pct = _pct_change(curr_act["sells"], prev_act["sells"])
 
     log.info(
-        "trading.period window=%s latest_hour=%s past_hour=%s "
-        "price_chg=%s liq_chg=%s vol_chg=%s trades_chg=%s trades_24h=%s",
+        "trading.period window=%s latest_hour=%s anchor_hour=%s "
+        "price_chg=%s liq_chg=%s vol_chg=%s trades_chg=%s buys_chg=%s sells_chg=%s "
+        "trades_rolling_24h=%s volume_current_display=%s trades_current_display=%s",
         window_key,
         latest.get("hour_ts"),
         past.get("hour_ts"),
@@ -221,45 +383,12 @@ def trading_metrics(
         liquidity_change_pct,
         volume_change_pct,
         trades_change_pct,
+        buys_change_pct,
+        sells_change_pct,
         trades_24h,
+        est_total,
+        trades_count,
     )
-
-    # 24h volume: current DEX Screener volume_24h; 7d/30d: estimated from hourly snapshots
-    est_total = None
-    if window_key == "24h":
-        est_total = vol_24h_now
-    else:
-        rows = conn.execute(
-            """
-            SELECT volume_24h FROM token_snapshots_hourly
-            WHERE dusd_mint = ? AND hour_ts >= ? AND volume_24h IS NOT NULL
-            """,
-            (dusd_mint, start - (start % 3600)),
-        ).fetchall()
-        vols = [float(r["volume_24h"]) for r in rows if r and r["volume_24h"] is not None]
-        if vols:
-            avg_daily = sum(vols) / len(vols)
-            days = window_s / 86400.0
-            est_total = avg_daily * days
-
-    trades_count: float | None = None
-    if window_key == "24h":
-        trades_count = float(trades_24h) if trades_24h is not None else None
-    else:
-        trows = conn.execute(
-            """
-            SELECT buys_24h, sells_24h FROM token_snapshots_hourly
-            WHERE dusd_mint = ? AND hour_ts >= ?
-            """,
-            (dusd_mint, start - (start % 3600)),
-        ).fetchall()
-        txn_vals: list[float] = []
-        for r in trows:
-            v = _txns_sum_from_snap(dict(r))
-            if v is not None:
-                txn_vals.append(float(v))
-        if txn_vals:
-            trades_count = (sum(txn_vals) / len(txn_vals)) * (window_s / 86400.0)
 
     if live_snap is not None:
         buys_out = live_snap.get("buys_24h")
@@ -285,6 +414,8 @@ def trading_metrics(
         "volume_change_pct": volume_change_pct,
         "trades_count": trades_count,
         "trades_change_pct": trades_change_pct,
+        "buys_change_pct": buys_change_pct,
+        "sells_change_pct": sells_change_pct,
         "dex_live": live_snap is not None,
         "tracking_started_ts": tracking_start,
         "has_enough_history": tracking_start is not None and tracking_start <= start,
