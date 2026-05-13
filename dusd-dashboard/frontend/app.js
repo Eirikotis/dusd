@@ -196,6 +196,44 @@ const DAILY_BURN_CHART_EXCLUDED_DAYS = new Set(["2026-03-10"]);
 /** Plot geometry for daily burn chart hover. */
 let dailyBurnPlotState = null;
 
+/** Raw API rows for daily burn; range toggles derive a non-mutating view. */
+let dailyBurnPointsRaw = [];
+/** `"30d"` | `"all"` — default 30D. */
+let dailyBurnChartRange = "30d";
+
+function buildDailyBurnCleanedSeries(raw) {
+  const arr = Array.isArray(raw) ? raw : [];
+  return arr
+    .map((p) => ({
+      day: p.day,
+      total_ui: p.total_ui == null ? NaN : Number(p.total_ui),
+    }))
+    .filter((p) => p.day && Number.isFinite(p.total_ui) && !DAILY_BURN_CHART_EXCLUDED_DAYS.has(p.day))
+    .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+}
+
+/** Last 30 calendar days inclusive ending at the latest day in `cleaned`. */
+function sliceDailyBurnLast30Days(cleaned) {
+  if (!cleaned.length) return cleaned;
+  const lastDay = cleaned[cleaned.length - 1].day;
+  const [y, m, d] = lastDay.split("-").map(Number);
+  if (!y || !m || !d) return cleaned;
+  const endMs = Date.UTC(y, m - 1, d);
+  const startMs = endMs - 29 * 86400000;
+  return cleaned.filter((p) => {
+    const [py, pm, pd] = p.day.split("-").map(Number);
+    if (!py || !pm || !pd) return false;
+    const t = Date.UTC(py, pm - 1, pd);
+    return t >= startMs && t <= endMs;
+  });
+}
+
+function applyDailyBurnChartView() {
+  const cleaned = buildDailyBurnCleanedSeries(dailyBurnPointsRaw);
+  const view = dailyBurnChartRange === "all" ? cleaned : sliceDailyBurnLast30Days(cleaned);
+  renderDailyBurnChart(view);
+}
+
 /** Daily burn Y-axis: compact K / M (e.g. 20.43K, 1.2M). */
 function fmtChartAxisYBurn(v) {
   const x = Number(v);
@@ -361,7 +399,7 @@ function renderDailyBurnChart(points) {
       day: p.day,
       v: p.total_ui == null ? NaN : Number(p.total_ui),
     }))
-    .filter((p) => p.day && Number.isFinite(p.v) && !DAILY_BURN_CHART_EXCLUDED_DAYS.has(p.day));
+    .filter((p) => p.day && Number.isFinite(p.v));
 
   if (!cleaned.length) {
     svg.innerHTML = "";
@@ -502,11 +540,13 @@ function renderDailyBurnChart(points) {
 async function loadDailyBurnsChart() {
   if (!document.getElementById("dailyBurnSvg")) return;
   try {
-    const data = await getJson("/api/burns/daily?days=90");
-    renderDailyBurnChart(data.points);
+    const data = await getJson("/api/burns/daily?days=366");
+    dailyBurnPointsRaw = data.points || [];
   } catch {
-    renderDailyBurnChart([]);
+    dailyBurnPointsRaw = [];
   }
+  setActiveButtons("data-daily-chart-range", dailyBurnChartRange);
+  applyDailyBurnChartView();
 }
 
 function setActiveButtons(attr, value) {
@@ -780,6 +820,13 @@ function bind() {
       tradeWindow = b.getAttribute("data-trade-window");
       setActiveButtons("data-trade-window", tradeWindow);
       await loadTradingWindow();
+    });
+  });
+  document.querySelectorAll("[data-daily-chart-range]").forEach((b) => {
+    b.addEventListener("click", () => {
+      dailyBurnChartRange = b.getAttribute("data-daily-chart-range") || "30d";
+      setActiveButtons("data-daily-chart-range", dailyBurnChartRange);
+      applyDailyBurnChartView();
     });
   });
   if (els.burnsViewToggle) {

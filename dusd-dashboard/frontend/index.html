@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Mono:wght@400;600&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/styles.css?v=20260511" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260513m" />
   </head>
   <body>
     <div class="bg-noise"></div>
@@ -189,6 +189,10 @@
         <div class="daily-burn-panel card">
           <div class="daily-burn-panel__head">
             <div class="daily-burn-panel__title">DAILY BURN 🔥</div>
+            <div class="seg" role="tablist" aria-label="Daily burn chart range">
+              <button type="button" class="seg-btn is-active" data-daily-chart-range="30d">30D</button>
+              <button type="button" class="seg-btn" data-daily-chart-range="all">ALL</button>
+            </div>
           </div>
           <div class="daily-burn-panel__body">
             <svg id="dailyBurnSvg" class="daily-burn-panel__svg" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
@@ -249,61 +253,136 @@
         </div>
       </section>
 
-      <section class="section section--gallery-mobile-only" aria-label="Gallery">
+      <section class="section community-section" aria-labelledby="community-heading">
+        <div class="section-head">
+          <div class="section-title" id="community-heading">COMMUNITY</div>
+        </div>
+        <div class="community-grid">
+          <article class="card community-card community-card--art-1">
+            <div class="community-card__subtitle">OFFICIAL X</div>
+            <div class="community-card__avatar-wrap">
+              <div class="community-card__avatar-ring">
+                <img
+                  class="community-card__avatar"
+                  src="/assets/xlogo.webp"
+                  alt=""
+                  width="63"
+                  height="63"
+                  decoding="async"
+                  loading="lazy"
+                />
+              </div>
+            </div>
+            <a
+              class="btn community-cta community-cta--x"
+              href="https://x.com/DUSD_CTO"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="View on X"
+            >
+              <span>View on</span>
+              <img
+                class="community-cta__icon community-cta__icon--suffix"
+                src="/assets/xlogo.webp"
+                alt=""
+                width="14"
+                height="14"
+                decoding="async"
+                loading="lazy"
+              />
+            </a>
+          </article>
+          <article class="card community-card community-card--art-2">
+            <div class="community-card__subtitle">Telegram</div>
+            <div class="community-card__avatar-wrap">
+              <div class="community-card__avatar-ring">
+                <img
+                  class="community-card__avatar"
+                  src="/assets/telegramlogo.webp"
+                  alt=""
+                  width="63"
+                  height="63"
+                  decoding="async"
+                  loading="lazy"
+                />
+              </div>
+            </div>
+            <a
+              class="btn community-cta"
+              href="https://t.me/dusdSol"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span>Join Telegram</span>
+            </a>
+          </article>
+          <article class="card community-card community-card--art-3">
+            <div class="community-card__subtitle">TIKTOK</div>
+            <div class="community-card__avatar-wrap">
+              <div class="community-card__avatar-ring">
+                <img
+                  class="community-card__avatar"
+                  src="/assets/tiktok.jpg"
+                  alt=""
+                  width="63"
+                  height="63"
+                  decoding="async"
+                  loading="lazy"
+                />
+              </div>
+            </div>
+            <a
+              class="btn community-cta"
+              href="https://www.tiktok.com/@dusd_cto"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span>Open TikTok</span>
+            </a>
+          </article>
+          <article class="card community-card community-card--art-4">
+            <div class="community-card__subtitle">Linktree</div>
+            <div class="community-card__avatar-wrap">
+              <div class="community-card__avatar-ring">
+                <img
+                  class="community-card__avatar"
+                  src="/assets/linktree.png"
+                  alt=""
+                  width="63"
+                  height="63"
+                  decoding="async"
+                  loading="lazy"
+                />
+              </div>
+            </div>
+            <a
+              class="btn community-cta"
+              href="https://linktr.ee/DUSD_CTO"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span>Open Linktree</span>
+            </a>
+          </article>
+        </div>
+      </section>
+
+      <section class="section section--community-after-mobile" aria-label="Banner">
         <div class="gallery gallery--mobile gallery--mobile-single">
           <div class="gallery-card">
             <img
               class="gallery-img gallery-img--mobile-full"
-              src="/assets/image (8).jpg"
-              alt="DUSD banner 2"
+              src="/assets/image5.png"
+              alt="DUSD banner"
               loading="lazy"
               decoding="async"
             />
           </div>
         </div>
       </section>
-
-      <footer class="footer">
-        <div class="social-row">
-          <span class="social-label">Follow:</span>
-          <a
-            class="social-btn"
-            href="https://x.com/DUSD_CTO"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="DUSD on X (Twitter)"
-          >
-            <img class="social-icon" src="/assets/xlogo.webp" alt="" decoding="async" loading="lazy" />
-          </a>
-          <a
-            class="social-btn"
-            href="https://t.me/dusdSol"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="DUSD on Telegram"
-          >
-            <img class="social-icon" src="/assets/telegramlogo.webp" alt="" decoding="async" loading="lazy" />
-          </a>
-          <a
-            class="social-btn"
-            href="https://dexscreener.com/solana/2z2ubdxaafishs6xrz2atv2ro7jl8hfduckxttfhjhdw"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="DUSD on Dexscreener"
-          >
-            <img
-              class="social-icon"
-              src="/assets/dex-screener-logo-png_seeklogo-527276.png"
-              alt=""
-              decoding="async"
-              loading="lazy"
-            />
-          </a>
-        </div>
-      </footer>
     </main>
 
-    <script type="module" src="/static/app.js?v=20260512"></script>
+    <script type="module" src="/static/app.js?v=20260513"></script>
   </body>
 </html>
 

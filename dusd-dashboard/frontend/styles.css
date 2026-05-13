@@ -592,8 +592,10 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
   grid-template-columns: repeat(3, 1fr);
   gap:12px;
 }
-.gallery--mobile,
-.section--gallery-mobile-only{
+.gallery--mobile{
+  display:none;
+}
+.section--community-after-mobile{
   display:none;
 }
 
@@ -716,46 +718,211 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
 .holders-line{ white-space: nowrap; }
 .holders-line .holders-delta{ font-weight: 600; }
 
-.footer{
-  margin-top:18px;
-  padding-top:10px;
-  border-top:1px solid rgba(255,255,255,.08);
+.community-section .section-head{
+  justify-content:flex-start;
 }
-
-.social-row{
-  margin-top:10px;
+.community-grid{
+  display:grid;
+  grid-template-columns:repeat(4, minmax(0, 1fr));
+  gap:11px;
+  align-items:stretch;
+}
+/* Flat premium panel + subtle background art (see ::before / ::after) */
+.community-card.card{
+  position:relative;
+  overflow:hidden;
+  isolation:isolate;
+  background:none;
+  background-color:transparent;
+  box-shadow:
+    0 10px 28px rgba(0,0,0,.48),
+    inset 0 1px 0 rgba(255,255,255,.045);
+  border-color:rgba(255,255,255,.085);
+}
+.community-card.card::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  border-radius:inherit;
+  background-repeat:no-repeat;
+  background-size:cover;
+  background-position:50% 45%;
+  opacity:0.5;
+  pointer-events:none;
+}
+.community-card.card::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:1;
+  border-radius:inherit;
+  pointer-events:none;
+  background:
+    linear-gradient(
+      165deg,
+      rgba(6,6,10,.8) 0%,
+      rgba(8,8,14,.74) 42%,
+      rgba(5,5,9,.84) 100%
+    );
+}
+.community-card.card > *{
+  position:relative;
+  z-index:2;
+}
+.community-card--art-1.card::before{
+  background-image:url("/assets/image1.png");
+  background-position:50% 38%;
+}
+.community-card--art-2.card::before{
+  background-image:url("/assets/image2.png");
+  background-position:50% 48%;
+}
+.community-card--art-3.card::before{
+  background-image:url("/assets/image3.png");
+  background-position:50% 36%;
+}
+.community-card--art-4.card::before{
+  background-image:url("/assets/image4.png");
+  background-position:50% 50%;
+}
+.community-card.card:hover{
+  transform:translateY(-1px);
+  border-color:rgba(255,90,20,.22);
+  box-shadow:
+    0 12px 32px rgba(0,0,0,.52),
+    inset 0 1px 0 rgba(255,255,255,.05),
+    0 0 0 1px rgba(255,90,20,.08),
+    0 0 24px rgba(255,90,20,.08);
+}
+.community-card{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
+  padding:14px 14px 13px;
+  height:100%;
+  min-height:0;
+}
+.community-card__subtitle{
+  font-family:"Bungee", system-ui, sans-serif;
+  font-size:13px;
+  letter-spacing:.28px;
+  color:rgba(255,255,255,.92);
+  margin:0 0 8px;
+  width:100%;
+  line-height:1.2;
+  text-shadow:0 1px 4px rgba(0,0,0,.82), 0 0 12px rgba(0,0,0,.35);
+}
+.community-card__avatar-wrap{
+  flex:0 0 auto;
   display:flex;
   align-items:center;
-  gap:10px;
-  flex-wrap:wrap;
+  justify-content:center;
+  width:100%;
+  padding:2px 0 6px;
 }
-.social-label{
-  font-size:12px;
-  color:var(--muted2);
+/* Outer ring + subtle orange glow; inner PFP sits inside padded ring */
+.community-card__avatar-ring{
+  flex-shrink:0;
+  border-radius:50%;
+  padding:2px;
+  background:rgba(8,8,11,.98);
+  box-shadow:
+    0 0 0 1px rgba(255,90,20,.26),
+    0 0 0 4px rgba(6,6,9,.98),
+    0 0 22px rgba(255,90,20,.11),
+    inset 0 0 0 1px rgba(255,255,255,.06);
 }
-.social-btn{
+.community-card__avatar{
+  display:block;
+  width:63px;
+  height:63px;
+  border-radius:50%;
+  object-fit:cover;
+  border:1px solid rgba(255,255,255,.11);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.35);
+  background:rgba(0,0,0,.28);
+}
+a.btn.community-cta{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  width:32px;
-  height:32px;
+  gap:6px;
+  text-decoration:none;
+  box-sizing:border-box;
+  margin-top:10px;
+  padding:7px 16px 8px;
+  width:auto;
+  max-width:none;
+  align-self:center;
   border-radius:999px;
-  border:1px solid rgba(255,255,255,.14);
-  background:rgba(0,0,0,.4);
-  box-shadow:0 0 0 1px rgba(0,0,0,.6);
-  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+  font-size:11.5px;
+  font-weight:600;
+  letter-spacing:.02em;
+  line-height:1.2;
+  border-color:rgba(255,90,20,.26);
 }
-.social-btn:hover{
-  transform: translateY(-1px);
-  border-color:rgba(255,90,20,.6);
-  box-shadow:0 0 18px rgba(255,90,20,.24);
-  background:rgba(255,90,20,.16);
+.community-cta--x{
+  gap:5px;
+  padding-left:14px;
+  padding-right:13px;
 }
-.social-icon{
+.community-cta__icon{
   display:block;
-  width:18px;
-  height:18px;
+  width:13px;
+  height:13px;
   object-fit:contain;
+  flex-shrink:0;
+}
+.community-cta__icon--suffix{
+  width:14px;
+  height:14px;
+  margin-left:1px;
+}
+
+@media (max-width: 768px){
+  .community-grid{
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:9px 10px;
+    align-items:stretch;
+  }
+  .community-card{
+    padding:9px 10px 10px;
+  }
+  .community-card__subtitle{
+    font-size:12px;
+    margin-bottom:5px;
+  }
+  .community-card__avatar-wrap{
+    padding:0 0 3px;
+  }
+  .community-card__avatar-ring{
+    padding:2px;
+    box-shadow:
+      0 0 0 1px rgba(255,90,20,.22),
+      0 0 0 3px rgba(6,6,9,.98),
+      0 0 16px rgba(255,90,20,.09),
+      inset 0 0 0 1px rgba(255,255,255,.05);
+  }
+  .community-card__avatar{
+    width:48px;
+    height:48px;
+  }
+  a.btn.community-cta{
+    margin-top:6px;
+    padding:5px 11px 6px;
+    font-size:10.5px;
+  }
+  .community-cta--x{
+    padding-left:10px;
+    padding-right:10px;
+    gap:4px;
+  }
+  .community-cta__icon--suffix{
+    width:12px;
+    height:12px;
+  }
 }
 
 @media (max-width: 980px){
@@ -803,12 +970,24 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
 /* Daily burn: shared title / plot chrome */
 .daily-burn-panel__head{
   flex-shrink:0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px 12px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
 }
 .daily-burn-panel__title{
   font-family:"Bungee", system-ui, sans-serif;
   letter-spacing:.4px;
   font-size:16px;
   color:rgba(255,255,255,.92);
+  margin:0;
+  flex:1 1 auto;
+  min-width:min(200px, 46vw);
+}
+.daily-burn-panel__head .seg{
+  flex:0 0 auto;
 }
 .daily-burn-panel__body{
   position:relative;
@@ -879,6 +1058,14 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
   .trading-layout > .daily-burn-panel.card{
     padding:10px 12px 10px;
     gap:6px;
+  }
+  .trading-layout .daily-burn-panel__head{
+    margin-bottom:6px;
+    gap:8px;
+  }
+  .trading-layout .daily-burn-panel__title{
+    min-width:0;
+    font-size:15px;
   }
   .trading-layout .daily-burn-panel__body{
     padding:4px 8px 8px;
@@ -1053,11 +1240,11 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
     grid-template-columns:1fr;
     margin-top:12px;
   }
-  .section--gallery-mobile-only{
+  .section--community-after-mobile{
     display:block;
-    margin-top:22px;
+    margin-top:18px;
   }
-  .section--gallery-mobile-only .gallery--mobile{
+  .section--community-after-mobile .gallery--mobile{
     margin-top:0;
   }
   .gallery-img.gallery-img--mobile-full{
