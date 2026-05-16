@@ -70,10 +70,31 @@
         <div class="card hero-right">
           <div class="card-head">
             <div class="card-title">Burn momentum</div>
-            <div class="seg" role="tablist" aria-label="Burn timeframe">
-              <button class="seg-btn is-active" data-burn-window="24h">24H</button>
-              <button class="seg-btn" data-burn-window="7d">7D</button>
-              <button class="seg-btn" data-burn-window="30d">30D</button>
+            <div class="seg seg--burn-window" role="tablist" aria-label="Burn timeframe">
+              <button type="button" class="seg-btn is-active" data-burn-window="24h">24H</button>
+              <button type="button" class="seg-btn" data-burn-window="7d">7D</button>
+              <button type="button" class="seg-btn" data-burn-window="30d">30D</button>
+              <button
+                type="button"
+                class="seg-btn seg-btn--custom"
+                data-burn-window="custom"
+                id="burnWindowCustomBtn"
+                aria-label="Custom timeframe"
+              >
+                <span class="seg-btn__custom-label" id="burnWindowCustomLabel">Custom</span>
+                <span class="seg-btn__custom-field" id="burnWindowCustomField" hidden>
+                  <input
+                    type="text"
+                    id="burnWindowCustomDays"
+                    class="seg-btn__custom-input"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    value="7"
+                    aria-label="Custom days"
+                  />
+                  <span class="seg-btn__custom-suffix" aria-hidden="true">d</span>
+                </span>
+              </button>
             </div>
           </div>
 

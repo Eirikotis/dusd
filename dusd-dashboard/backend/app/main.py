@@ -97,8 +97,13 @@ def create_app() -> FastAPI:
         )
 
     @app.get("/api/metrics")
-    def api_metrics(window: str):
-        return timeframe_metrics(conn, window_key=window, dusd_mint=settings.dusd_mint)
+    def api_metrics(window: str, days: int | None = None):
+        try:
+            return timeframe_metrics(
+                conn, window_key=window, dusd_mint=settings.dusd_mint, custom_days=days
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.get("/api/trading")
     def api_trading(window: str):

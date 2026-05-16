@@ -183,6 +183,10 @@ const els = {
 };
 
 let burnWindow = "24h";
+/** Active day count when `burnWindow === "custom"`. */
+let burnCustomDays = 7;
+/** Max days allowed for custom burn window (from API / burn history). */
+let burnMaxHistoryDays = 366;
 let tradeWindow = "24h";
 let currentPriceUsd = null;
 /** Full list from API; rendering uses slice when collapsed. */
@@ -452,7 +456,7 @@ function renderDailyBurnChart(points) {
   filter.setAttribute("height", "150%");
   const blur = document.createElementNS("http://www.w3.org/2000/svg", "feGaussianBlur");
   blur.setAttribute("in", "SourceGraphic");
-  blur.setAttribute("stdDeviation", "2");
+  blur.setAttribute("stdDeviation", "0.85");
   blur.setAttribute("result", "blur");
   const merge = document.createElementNS("http://www.w3.org/2000/svg", "feMerge");
   const mn1 = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
@@ -508,8 +512,8 @@ function renderDailyBurnChart(points) {
     svg.appendChild(yt);
   });
 
-  const lineStroke = narrowMobile ? 2.7 : compact ? 2.85 : 2.25;
-  const glowStroke = narrowMobile ? 5.25 : compact ? 5.5 : 5;
+  const lineStroke = narrowMobile ? 2.65 : compact ? 2.75 : 2.35;
+  const glowStroke = narrowMobile ? 3.6 : compact ? 3.75 : 3.4;
   const lineD = buildDailyBurnLinePath(xs, ys);
   const glowPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   glowPath.setAttribute("d", lineD);
@@ -518,7 +522,7 @@ function renderDailyBurnChart(points) {
   glowPath.setAttribute("stroke-width", String(glowStroke));
   glowPath.setAttribute("stroke-linecap", "round");
   glowPath.setAttribute("stroke-linejoin", "round");
-  glowPath.setAttribute("opacity", "0.35");
+  glowPath.setAttribute("opacity", "0.14");
   glowPath.setAttribute("filter", "url(#dailyBurnGlow)");
   svg.appendChild(glowPath);
 
@@ -586,8 +590,76 @@ function fmtUsdBurnWindow(amountUsd) {
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function metricsUrlForBurnWindow() {
+  if (burnWindow === "custom") {
+    return `/api/metrics?window=custom&days=${encodeURIComponent(String(burnCustomDays))}`;
+  }
+  return `/api/metrics?window=${encodeURIComponent(burnWindow)}`;
+}
+
+function clampBurnCustomDays(raw) {
+  const n = Math.round(Number(raw));
+  if (!Number.isFinite(n)) return Math.min(7, burnMaxHistoryDays);
+  return Math.max(1, Math.min(n, burnMaxHistoryDays));
+}
+
+function syncBurnCustomDaysInput() {
+  const input = document.getElementById("burnWindowCustomDays");
+  if (!input) return;
+  input.value = String(burnCustomDays);
+  input.placeholder = `1–${burnMaxHistoryDays}d`;
+  input.setAttribute("aria-valuemin", "1");
+  input.setAttribute("aria-valuemax", String(burnMaxHistoryDays));
+}
+
+function updateBurnCustomControl() {
+  const btn = document.getElementById("burnWindowCustomBtn");
+  const label = document.getElementById("burnWindowCustomLabel");
+  const field = document.getElementById("burnWindowCustomField");
+  const isCustom = burnWindow === "custom";
+  if (btn) btn.classList.toggle("is-active", isCustom);
+  if (label) label.hidden = isCustom;
+  if (field) field.hidden = !isCustom;
+  syncBurnCustomDaysInput();
+}
+
+function focusBurnCustomInput() {
+  const input = document.getElementById("burnWindowCustomDays");
+  if (!input || burnWindow !== "custom") return;
+  requestAnimationFrame(() => {
+    input.focus();
+    input.select();
+  });
+}
+
+function setBurnWindowUiActive() {
+  document.querySelectorAll("[data-burn-window]").forEach((b) => {
+    const win = b.getAttribute("data-burn-window");
+    if (win === "custom") return;
+    b.classList.toggle("is-active", win === burnWindow);
+  });
+  updateBurnCustomControl();
+}
+
+function applyBurnMaxHistoryFromMetrics(m) {
+  if (m?.max_history_days != null && Number.isFinite(Number(m.max_history_days))) {
+    burnMaxHistoryDays = Math.max(1, Math.round(Number(m.max_history_days)));
+    syncBurnCustomDaysInput();
+  }
+  if (burnWindow === "custom") {
+    if (m?.custom_days != null && Number.isFinite(Number(m.custom_days))) {
+      burnCustomDays = Math.round(Number(m.custom_days));
+    } else {
+      burnCustomDays = clampBurnCustomDays(burnCustomDays);
+    }
+    syncBurnCustomDaysInput();
+    updateBurnCustomControl();
+  }
+}
+
 async function loadBurnWindow() {
-  const m = await getJson(`/api/metrics?window=${encodeURIComponent(burnWindow)}`);
+  const m = await getJson(metricsUrlForBurnWindow());
+  applyBurnMaxHistoryFromMetrics(m);
   if (m.burned_in_window === null || m.burned_in_window === undefined) {
     els.burnWindowAmount.textContent = "N/A";
   } else {
@@ -763,8 +835,16 @@ function renderBurnRows(items) {
     if (it.amount_ui === null || it.amount_ui === undefined || Number.isNaN(Number(it.amount_ui))) {
       tdAmt.textContent = "—";
     } else {
+      const amount = Number(it.amount_ui);
       tdAmt.className = "burn-amount-cell";
-      tdAmt.textContent = fmtBurnAmountDisplay(it.amount_ui);
+      const dusdLabel =
+        amount >= 1 ? `${fmtNum(amount, 0)} DUSD` : `${fmtBurnAmountDisplay(amount)} DUSD`;
+      if (currentPriceUsd !== null && Number.isFinite(currentPriceUsd)) {
+        const usd = amount * currentPriceUsd;
+        tdAmt.innerHTML = `${dusdLabel} <span class="burn-amount-usd">($${fmtUsdBurnWindow(usd)})</span>`;
+      } else {
+        tdAmt.textContent = dusdLabel;
+      }
     }
 
     const tdSig = document.createElement("td");
@@ -807,14 +887,68 @@ async function loadBurns() {
   renderBurns();
 }
 
-function bind() {
+function bindBurnWindowControls() {
+  const customInput = document.getElementById("burnWindowCustomDays");
+  const customBtn = document.getElementById("burnWindowCustomBtn");
+
+  const commitCustomDays = async () => {
+    if (!customInput) return;
+    const next = clampBurnCustomDays(customInput.value);
+    const changed = next !== burnCustomDays || burnWindow !== "custom";
+    burnCustomDays = next;
+    burnWindow = "custom";
+    syncBurnCustomDaysInput();
+    setBurnWindowUiActive();
+    if (!changed) return;
+    await loadBurnWindow();
+  };
+
   document.querySelectorAll("[data-burn-window]").forEach((b) => {
-    b.addEventListener("click", async () => {
-      burnWindow = b.getAttribute("data-burn-window");
-      setActiveButtons("data-burn-window", burnWindow);
+    b.addEventListener("click", async (ev) => {
+      const win = b.getAttribute("data-burn-window") || "24h";
+      if (win === "custom") {
+        if (ev.target === customInput) return;
+        const wasCustom = burnWindow === "custom";
+        burnWindow = "custom";
+        burnCustomDays = clampBurnCustomDays(burnCustomDays);
+        setBurnWindowUiActive();
+        focusBurnCustomInput();
+        if (!wasCustom) await loadBurnWindow();
+        return;
+      }
+      burnWindow = win;
+      setBurnWindowUiActive();
       await loadBurnWindow();
     });
   });
+
+  if (customInput) {
+    customInput.addEventListener("blur", () => {
+      commitCustomDays().catch(() => {});
+    });
+    customInput.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        customInput.blur();
+      }
+    });
+    customInput.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+    });
+  }
+
+  if (customBtn && customInput) {
+    customBtn.addEventListener("mousedown", (ev) => {
+      if (burnWindow === "custom" && ev.target === customInput) {
+        ev.preventDefault();
+        customInput.focus();
+      }
+    });
+  }
+}
+
+function bind() {
+  bindBurnWindowControls();
   document.querySelectorAll("[data-trade-window]").forEach((b) => {
     b.addEventListener("click", async () => {
       tradeWindow = b.getAttribute("data-trade-window");
@@ -839,6 +973,8 @@ function bind() {
 
 async function boot() {
   bind();
+  syncBurnCustomDaysInput();
+  setBurnWindowUiActive();
   await loadCurrent();
   await loadBurnWindow();
   await loadTradingWindow();

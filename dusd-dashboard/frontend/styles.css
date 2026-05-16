@@ -326,6 +326,73 @@ body{
   box-shadow: inset 0 0 0 1px rgba(255,90,20,.25), 0 0 20px rgba(255,90,20,.12);
 }
 
+.seg--burn-window{
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  max-width:min(100%, 420px);
+}
+.seg-btn--custom{
+  letter-spacing:.02em;
+  min-width:4.25rem;
+}
+.seg-btn--custom .seg-btn__custom-label,
+.seg-btn--custom .seg-btn__custom-field{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:2px;
+  line-height:1;
+}
+.seg-btn--custom .seg-btn__custom-field[hidden],
+.seg-btn--custom .seg-btn__custom-label[hidden]{
+  display:none;
+}
+.seg-btn__custom-input{
+  width:2.4rem;
+  min-width:0;
+  border:none;
+  background:transparent;
+  color:#fff;
+  font-family:inherit;
+  font-size:12px;
+  font-weight:600;
+  font-variant-numeric:tabular-nums;
+  padding:0;
+  margin:0;
+  text-align:center;
+  outline:none;
+}
+.seg-btn__custom-input::placeholder{
+  color:rgba(255,255,255,.38);
+  font-weight:500;
+}
+.seg-btn__custom-input:focus{
+  outline:none;
+}
+.seg-btn__custom-suffix{
+  font-size:11px;
+  font-weight:600;
+  color:rgba(255,255,255,.55);
+  flex:0 0 auto;
+}
+@media (max-width: 520px){
+  .card-head{
+    flex-wrap:wrap;
+    align-items:flex-start;
+  }
+  .seg--burn-window{
+    width:100%;
+    max-width:100%;
+    justify-content:flex-start;
+  }
+  .seg-btn--custom.is-active{
+    flex:0 1 auto;
+  }
+  .seg-btn__custom-input{
+    width:2.6rem;
+  }
+}
+
 .hint{
   margin-top:12px;
   font-size:12px;
@@ -693,9 +760,19 @@ a.trade-action-card--buy:hover .trade-action-icon--buy{
   color:var(--orange);
   font-weight:600;
   font-variant-numeric: tabular-nums;
+  white-space:nowrap;
+}
+.table td.burn-amount-cell .burn-amount-usd{
+  color:var(--usdGreen);
+  font-weight:600;
+  margin-left:4px;
+  text-shadow:0 0 12px rgba(74,222,128,.12);
 }
 .table tbody tr:hover td.burn-amount-cell{
   color:#ff6a24;
+}
+.table tbody tr:hover td.burn-amount-cell .burn-amount-usd{
+  color:#5ee88f;
 }
 .table tbody tr:hover td{
   background:rgba(255,90,20,.07);

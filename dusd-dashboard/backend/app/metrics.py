@@ -150,6 +150,21 @@ def _snapshot_for_period_compare(
     return None if row is None else dict(row)
 
 
+def burn_history_max_days(conn) -> int:
+    """Calendar days from earliest burn event to now (inclusive), capped at 366."""
+    row = conn.execute(
+        "SELECT MIN(timestamp) AS m FROM burn_events WHERE timestamp IS NOT NULL",
+    ).fetchone()
+    if row is None or row["m"] is None:
+        return 1
+    earliest = int(row["m"])
+    now = _now_ts()
+    if earliest >= now:
+        return 1
+    days = int((now - earliest) // 86400) + 1
+    return max(1, min(days, 366))
+
+
 def _sum_burns_since(conn, since_ts: int) -> float:
     # SQLite SUM() returns NULL when no rows match; that means zero burned, not "unknown".
     row = conn.execute(
@@ -198,10 +213,25 @@ def _txns_sum_from_snap(row: dict[str, Any]) -> int | None:
     return int(b or 0) + int(s or 0)
 
 
-def timeframe_metrics(conn, *, window_key: str, dusd_mint: str) -> dict[str, Any]:
-    window_s = WINDOWS.get(window_key)
-    if window_s is None:
-        raise ValueError("invalid window")
+def timeframe_metrics(
+    conn,
+    *,
+    window_key: str,
+    dusd_mint: str,
+    custom_days: int | None = None,
+) -> dict[str, Any]:
+    max_history_days = burn_history_max_days(conn)
+    custom_days_applied: int | None = None
+
+    if window_key == "custom":
+        if custom_days is None:
+            raise ValueError("days required for custom window")
+        custom_days_applied = max(1, min(int(custom_days), max_history_days))
+        window_s = custom_days_applied * 86400
+    else:
+        window_s = WINDOWS.get(window_key)
+        if window_s is None:
+            raise ValueError("invalid window")
 
     now = _now_ts()
     start = now - window_s
@@ -231,6 +261,8 @@ def timeframe_metrics(conn, *, window_key: str, dusd_mint: str) -> dict[str, Any
     return {
         "window": window_key,
         "window_seconds": window_s,
+        "custom_days": custom_days_applied,
+        "max_history_days": max_history_days,
         "since_ts": start,
         "burned_in_window": burns,
         "holder_count": holder_count_out,
