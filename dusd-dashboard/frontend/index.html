@@ -3,407 +3,193 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>$DUSD</title>
+    <meta name="theme-color" content="#030403" />
+    <title>DUSD // Burn Monitor</title>
     <link rel="icon" type="image/png" href="/assets/DUSD.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Mono:wght@400;600&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="/static/styles.css?v=20260513m" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260711a" />
   </head>
   <body>
-    <div class="bg-noise"></div>
-    <header class="header">
-      <div class="brand">
-        <img class="logo" src="/assets/DUSD.png" alt="DUSD logo" />
-        <div class="title">
-          <div class="h1">
-            <span class="h1-white">DUSD</span>
-            <span class="h1-orange">Dashboard</span>
-          </div>
-          <div class="sub">B8RHrVBxSjBGKqAbn1tXo6CWjvt5jFkkqjbCZtuDpump</div>
-        </div>
-      </div>
+    <div class="page-grid" aria-hidden="true"></div>
+    <div class="scanline" aria-hidden="true"></div>
+    <div class="cursor-aura" id="cursorAura" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="DUSD dashboard home">
+        <span class="brand-mark"><img src="/assets/DUSD.png" alt="" /></span>
+        <span class="brand-copy">
+          <strong>DUSD<span>/MONITOR</span></strong>
+          <small>B8RHrVBxSjBGKqAbn1tXo6CWjvt5jFkkqjbCZtuDpump</small>
+        </span>
+      </a>
+      <nav class="topbar-actions" aria-label="Primary links">
+        <span class="network-state"><i></i> SOLANA / LIVE</span>
+        <a href="https://dexscreener.com/solana/2z2ubdxaafishs6xrz2atv2ro7jl8hfduckxttfhjhdw" target="_blank" rel="noopener noreferrer">CHART <span>↗</span></a>
+        <a class="topbar-buy" href="https://jup.ag/?buy=B8RHrVBxSjBGKqAbn1tXo6CWjvt5jFkkqjbCZtuDpump" target="_blank" rel="noopener noreferrer">BUY DUSD <span>↗</span></a>
+      </nav>
     </header>
 
-    <main class="container container-stage">
-      <img
-        class="mascot-right"
-        src="/assets/dusdguy.png"
-        alt=""
-        aria-hidden="true"
-        decoding="async"
-      />
-      <section class="grid-hero">
-        <div class="card hero-left">
-          <div class="card-head">
-            <div class="card-title">Supply vs Burned</div>
-            <div class="pill" id="lastUpdatedPill">last updated: —</div>
+    <main class="shell" id="top">
+      <section class="masthead interactive-surface" aria-labelledby="page-title">
+        <div class="masthead-copy">
+          <div class="terminal-kicker"><span>root@dusd</span>:~/burn-monitor$ status --live</div>
+          <h1 id="page-title">DUSD burn telemetry<span class="cursor-block" aria-hidden="true"></span></h1>
+          <p>Real-time supply, burn and market intelligence on Solana.</p>
+        </div>
+        <div class="masthead-emblem" aria-hidden="true">
+          <div class="emblem-rings"><img src="/assets/DUSD.png" alt="" /></div>
+        </div>
+        <div class="masthead-status">
+          <span id="lastUpdatedPill">SYNCING / --</span>
+          <span>INDEXER ONLINE</span>
+          <span>RPC LINKED</span>
+        </div>
+      </section>
+
+      <section class="core-stats" aria-label="Core burn statistics">
+        <article class="stat-cell interactive-surface">
+          <div class="stat-index">01</div>
+          <div class="k">TOTAL BURNED</div>
+          <div class="v v-burn" id="totalBurned">--</div>
+          <div class="stat-bar stat-bar--orange"></div>
+        </article>
+        <article class="stat-cell interactive-surface">
+          <div class="stat-index">02</div>
+          <div class="k">BURNED VALUE</div>
+          <div class="v v-green" id="burnedValue">--</div>
+          <div class="stat-bar stat-bar--green"></div>
+        </article>
+        <article class="stat-cell interactive-surface">
+          <div class="stat-index">03</div>
+          <div class="k">CURRENT SUPPLY</div>
+          <div class="v" id="currentSupply">--</div>
+          <div class="stat-bar"></div>
+        </article>
+        <article class="stat-cell interactive-surface">
+          <div class="stat-index">04</div>
+          <div class="k">SUPPLY BURNED</div>
+          <div class="v v-burn" id="burnedPct">--</div>
+          <div class="stat-bar stat-bar--orange"></div>
+        </article>
+      </section>
+
+      <section class="dashboard-row dashboard-row--primary">
+        <article class="panel supply-panel interactive-surface">
+          <div class="panel-head">
+            <div>
+              <span class="panel-path">~/supply</span>
+              <h2>Supply distribution</h2>
+            </div>
+            <span class="panel-code">SYS.01</span>
           </div>
-          <div class="visual-placeholder is-live">
-            <div class="ring" id="supplyRing" aria-label="Burned percent ring">
+          <div class="supply-visual">
+            <div class="ring" id="supplyRing" aria-label="Burned supply percentage">
               <div class="ring-inner">
-                <div class="ring-big" id="burnedPct">—</div>
-                <div class="ring-sub">burned</div>
+                <span class="ring-label">BURN RATIO</span>
+                <strong id="burnedPctMirror">--</strong>
+                <small>OF GENESIS</small>
               </div>
             </div>
-            <div class="visual-label">
-              <div><span class="dot dot-orange"></span> Burned</div>
-              <div><span class="dot dot-green"></span> Circulating</div>
-              <div class="visual-mini"><span class="muted">Supply:</span> <span id="currentSupply">—</span></div>
+            <div class="supply-ledger">
+              <div><span><i class="key-dot key-dot--orange"></i>BURNED</span><b id="totalBurnedMirror">--</b></div>
+              <div><span><i class="key-dot key-dot--green"></i>CIRCULATING</span><b id="currentSupplyMirror">--</b></div>
+              <div class="supply-rule"><span>NETWORK</span><b>SOLANA</b></div>
+              <div><span>STATUS</span><b class="online">TRACKING</b></div>
             </div>
           </div>
-          <div class="hero-metrics">
-            <div class="metric">
-              <div class="k">Total burned</div>
-              <div class="v v-burn" id="totalBurned">—</div>
-            </div>
-            <div class="metric">
-              <div class="k">Burned value (USD)</div>
-              <div class="v v-usd" id="burnedValue">—</div>
-            </div>
-          </div>
-        </div>
+        </article>
 
-        <div class="card hero-right">
-          <div class="card-head">
-            <div class="card-title">Burn momentum</div>
+        <article class="panel momentum-panel interactive-surface">
+          <div class="panel-head panel-head--controls">
+            <div>
+              <span class="panel-path">~/velocity</span>
+              <h2>Burn momentum</h2>
+            </div>
             <div class="seg seg--burn-window" role="tablist" aria-label="Burn timeframe">
               <button type="button" class="seg-btn is-active" data-burn-window="24h">24H</button>
               <button type="button" class="seg-btn" data-burn-window="7d">7D</button>
               <button type="button" class="seg-btn" data-burn-window="30d">30D</button>
-              <button
-                type="button"
-                class="seg-btn seg-btn--custom"
-                data-burn-window="custom"
-                id="burnWindowCustomBtn"
-                aria-label="Custom timeframe"
-              >
-                <span class="seg-btn__custom-label" id="burnWindowCustomLabel">Custom</span>
+              <button type="button" class="seg-btn seg-btn--custom" data-burn-window="custom" id="burnWindowCustomBtn" aria-label="Custom timeframe">
+                <span class="seg-btn__custom-label" id="burnWindowCustomLabel">CUSTOM</span>
                 <span class="seg-btn__custom-field" id="burnWindowCustomField" hidden>
-                  <input
-                    type="text"
-                    id="burnWindowCustomDays"
-                    class="seg-btn__custom-input"
-                    inputmode="numeric"
-                    autocomplete="off"
-                    value="7"
-                    aria-label="Custom days"
-                  />
-                  <span class="seg-btn__custom-suffix" aria-hidden="true">d</span>
+                  <input type="text" id="burnWindowCustomDays" class="seg-btn__custom-input" inputmode="numeric" autocomplete="off" value="7" aria-label="Custom days" />
+                  <span class="seg-btn__custom-suffix" aria-hidden="true">D</span>
                 </span>
               </button>
             </div>
           </div>
-
-          <div class="rows">
-            <div class="row">
-              <div class="k">Burned</div>
-              <div class="v v-burn v-strong" id="burnWindowAmount">—</div>
-            </div>
-            <div class="row">
-              <div class="k">Holders</div>
-              <div class="v holders-line" id="holderChange">—</div>
-            </div>
-            <div class="row">
-              <div class="k">Average burn / second</div>
-              <div class="v" id="burnPerSecond">—</div>
-            </div>
-            <div class="row">
-              <div class="k">Projected time to zero</div>
-              <div class="v" id="timeToZero">—</div>
-            </div>
-            <div class="row">
-              <div class="k">% of circ.</div>
-              <div class="v v-burn" id="burnPctCirc">—</div>
-            </div>
+          <div class="telemetry-list">
+            <div class="telemetry-feature"><span>BURNED / WINDOW</span><strong id="burnWindowAmount">--</strong></div>
+            <div><span>HOLDERS</span><strong class="holders-line" id="holderChange">--</strong></div>
+            <div><span>AVG BURN / SECOND</span><strong id="burnPerSecond">--</strong></div>
+            <div><span>PROJECTED ZERO</span><strong id="timeToZero">--</strong></div>
+            <div><span>% OF CIRCULATING</span><strong class="v-burn" id="burnPctCirc">--</strong></div>
           </div>
-        </div>
+        </article>
       </section>
 
-      <section class="section">
-        <div class="trading-section-inner">
-        <div class="trading-layout">
-        <div class="trading-layout-main">
-        <div class="section-head">
-          <div class="section-title">Trading</div>
+      <section class="section-block" aria-labelledby="market-title">
+        <div class="section-heading">
+          <div><span class="section-index">02 / MARKET</span><h2 id="market-title">Trading terminal</h2></div>
           <div class="seg" role="tablist" aria-label="Trading timeframe">
             <button class="seg-btn is-active" data-trade-window="24h">24H</button>
             <button class="seg-btn" data-trade-window="7d">7D</button>
             <button class="seg-btn" data-trade-window="30d">30D</button>
           </div>
         </div>
-        <div class="grid-trade">
-          <div class="card mini">
-            <div class="k">Current price</div>
-            <div class="v metric-line" id="priceUsd">—</div>
+        <div class="market-layout">
+          <div class="market-stats">
+            <article class="market-cell interactive-surface"><span>PRICE / USD</span><div id="priceUsd">--</div></article>
+            <article class="market-cell interactive-surface"><span>VOLUME</span><div id="tradeVolume">--</div></article>
+            <article class="market-cell interactive-surface"><span>LIQUIDITY</span><div id="liquidityUsd">--</div></article>
+            <article class="market-cell interactive-surface"><span>TRADES</span><div id="tradeTrades">--</div></article>
+            <a class="terminal-action terminal-action--chart interactive-surface" href="https://dexscreener.com/solana/2z2ubdxaafishs6xrz2atv2ro7jl8hfduckxttfhjhdw" target="_blank" rel="noopener noreferrer"><span>OPEN</span><strong>DEX CHART ↗</strong></a>
+            <a class="terminal-action terminal-action--buy interactive-surface" href="https://jup.ag/?buy=B8RHrVBxSjBGKqAbn1tXo6CWjvt5jFkkqjbCZtuDpump" target="_blank" rel="noopener noreferrer"><span>EXECUTE</span><strong>BUY DUSD ↗</strong></a>
           </div>
-          <div class="card mini">
-            <div class="k">Volume</div>
-            <div class="v metric-line" id="tradeVolume">—</div>
-          </div>
-          <div class="card mini">
-            <div class="k">Liquidity</div>
-            <div class="v metric-line" id="liquidityUsd">—</div>
-          </div>
-          <div class="card mini">
-            <div class="k">Trades</div>
-            <div class="v metric-line" id="tradeTrades">—</div>
-          </div>
-          <a
-            class="card trade-action-card trade-action-card--chart"
-            href="https://dexscreener.com/solana/2z2ubdxaafishs6xrz2atv2ro7jl8hfduckxttfhjhdw"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Open chart on Dexscreener"
-          >
-            <span class="trade-action-chart-stack">
-              <span class="trade-action-label trade-action-label--chart">Chart</span>
-              <svg
-                class="trade-action-icon trade-action-icon--chart"
-                viewBox="0 0 40 24"
-                width="44"
-                height="26"
-                preserveAspectRatio="xMidYMid meet"
-                aria-hidden="true"
-              >
-                <line x1="2" y1="21" x2="38" y2="21" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.35" />
-                <g fill="currentColor" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="9" y1="10.5" x2="9" y2="21.2" stroke-width="3" fill="none" />
-                  <rect x="5.5" y="14" width="7" height="5.5" rx="0.75" stroke="none" />
-                  <line x1="20" y1="8" x2="20" y2="21.2" stroke-width="3" fill="none" />
-                  <rect x="16.5" y="10.5" width="7" height="7.5" rx="0.75" stroke="none" />
-                  <line x1="31" y1="6" x2="31" y2="21.2" stroke-width="3" fill="none" />
-                  <rect x="27.5" y="8" width="7" height="9.5" rx="0.75" stroke="none" />
-                </g>
-              </svg>
-            </span>
-          </a>
-          <a
-            class="card trade-action-card trade-action-card--buy"
-            href="https://jup.ag/?buy=B8RHrVBxSjBGKqAbn1tXo6CWjvt5jFkkqjbCZtuDpump"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <span class="trade-action-buy-stack">
-              <span class="trade-action-label trade-action-label--buy">Buy DUSD</span>
-              <svg
-                class="trade-action-icon trade-action-icon--buy"
-                viewBox="0 0 24 28"
-                width="15"
-                height="17"
-                aria-hidden="true"
-              >
-                <path
-                  fill="currentColor"
-                  d="M12 1.2C8.5 7 5.5 11.5 5.5 17.5 5.5 22.5 8.5 26 12 27.2 15.5 26 18.5 22.5 18.5 17.5 18.5 11.5 15.5 7 12 1.2z"
-                />
-                <ellipse cx="12" cy="16.2" rx="2.9" ry="5.2" fill="rgba(255,230,200,0.92)" />
-              </svg>
-            </span>
-          </a>
-        </div>
-        </div>
-
-        <div class="daily-burn-panel card">
-          <div class="daily-burn-panel__head">
-            <div class="daily-burn-panel__title">DAILY BURN 🔥</div>
-            <div class="seg" role="tablist" aria-label="Daily burn chart range">
-              <button type="button" class="seg-btn is-active" data-daily-chart-range="30d">30D</button>
-              <button type="button" class="seg-btn" data-daily-chart-range="all">ALL</button>
+          <article class="panel chart-panel interactive-surface">
+            <div class="panel-head panel-head--controls">
+              <div><span class="panel-path">~/burn-history</span><h2>Daily burn</h2></div>
+              <div class="seg" role="tablist" aria-label="Daily burn chart range">
+                <button type="button" class="seg-btn is-active" data-daily-chart-range="30d">30D</button>
+                <button type="button" class="seg-btn" data-daily-chart-range="all">ALL</button>
+              </div>
             </div>
-          </div>
-          <div class="daily-burn-panel__body">
-            <svg id="dailyBurnSvg" class="daily-burn-panel__svg" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
-            <div class="daily-burn-chart__tooltip" id="dailyBurnTooltip" hidden></div>
-          </div>
-        </div>
-
-        <div class="gallery gallery--desktop trading-featured">
-          <div class="gallery-card gallery-card--trading-featured">
-            <img
-              class="gallery-img gallery-img--featured-desktop"
-              src="/assets/WC.png"
-              alt="DUSD banner 1"
-              loading="lazy"
-              decoding="async"
-            />
-          </div>
-        </div>
-        <div class="gallery gallery--mobile gallery--mobile-single">
-          <div class="gallery-card">
-            <img
-              class="gallery-img gallery-img--mobile-full"
-              src="/assets/WC.png"
-              alt="DUSD banner 1"
-              loading="lazy"
-              decoding="async"
-            />
-          </div>
-        </div>
-        </div>
+            <div class="chart-body daily-burn-panel__body">
+              <svg id="dailyBurnSvg" class="daily-burn-panel__svg" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+              <div class="daily-burn-chart__tooltip" id="dailyBurnTooltip" hidden></div>
+            </div>
+          </article>
         </div>
       </section>
 
-      <section class="section">
-        <div class="section-head">
-          <div class="section-title">Recent burns 🔥</div>
-        </div>
-
-        <div class="card table-card">
+      <section class="section-block" aria-labelledby="ledger-title">
+        <div class="section-heading"><div><span class="section-index">03 / LEDGER</span><h2 id="ledger-title">Recent burns</h2></div><span class="live-tag"><i></i> LIVE FEED</span></div>
+        <div class="panel table-panel interactive-surface">
           <div class="table-wrap">
             <table class="table">
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  <th>Amount</th>
-                  <th>Signature</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody id="burnTable">
-                <tr><td colspan="4" class="muted">Loading…</td></tr>
-              </tbody>
+              <thead><tr><th>TIME / UTC</th><th>AMOUNT</th><th>SIGNATURE</th><th>DESCRIPTION</th></tr></thead>
+              <tbody id="burnTable"><tr><td colspan="4" class="muted">QUERYING LEDGER...</td></tr></tbody>
             </table>
           </div>
-          <div class="burns-table-footer">
-            <button type="button" class="btn" id="burnsViewToggle" hidden>View more</button>
-          </div>
+          <div class="burns-table-footer"><button type="button" class="terminal-button" id="burnsViewToggle" hidden>VIEW MORE</button></div>
         </div>
       </section>
 
-      <section class="section community-section" aria-labelledby="community-heading">
-        <div class="section-head">
-          <div class="section-title" id="community-heading">COMMUNITY</div>
-        </div>
+      <section class="section-block community-section" aria-labelledby="community-heading">
+        <div class="section-heading"><div><span class="section-index">04 / NETWORK</span><h2 id="community-heading">Community uplinks</h2></div></div>
         <div class="community-grid">
-          <article class="card community-card community-card--art-1">
-            <div class="community-card__subtitle">OFFICIAL X</div>
-            <div class="community-card__avatar-wrap">
-              <div class="community-card__avatar-ring">
-                <img
-                  class="community-card__avatar"
-                  src="/assets/xlogo.webp"
-                  alt=""
-                  width="63"
-                  height="63"
-                  decoding="async"
-                  loading="lazy"
-                />
-              </div>
-            </div>
-            <a
-              class="btn community-cta community-cta--x"
-              href="https://x.com/DUSD_CTO"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="View on X"
-            >
-              <span>View on</span>
-              <img
-                class="community-cta__icon community-cta__icon--suffix"
-                src="/assets/xlogo.webp"
-                alt=""
-                width="14"
-                height="14"
-                decoding="async"
-                loading="lazy"
-              />
-            </a>
-          </article>
-          <article class="card community-card community-card--art-2">
-            <div class="community-card__subtitle">Telegram</div>
-            <div class="community-card__avatar-wrap">
-              <div class="community-card__avatar-ring">
-                <img
-                  class="community-card__avatar"
-                  src="/assets/telegramlogo.webp"
-                  alt=""
-                  width="63"
-                  height="63"
-                  decoding="async"
-                  loading="lazy"
-                />
-              </div>
-            </div>
-            <a
-              class="btn community-cta"
-              href="https://t.me/dusdSol"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span>Join Telegram</span>
-            </a>
-          </article>
-          <article class="card community-card community-card--art-3">
-            <div class="community-card__subtitle">TIKTOK</div>
-            <div class="community-card__avatar-wrap">
-              <div class="community-card__avatar-ring">
-                <img
-                  class="community-card__avatar"
-                  src="/assets/tiktok.jpg"
-                  alt=""
-                  width="63"
-                  height="63"
-                  decoding="async"
-                  loading="lazy"
-                />
-              </div>
-            </div>
-            <a
-              class="btn community-cta"
-              href="https://www.tiktok.com/@dusd_cto"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span>Open TikTok</span>
-            </a>
-          </article>
-          <article class="card community-card community-card--art-4">
-            <div class="community-card__subtitle">Linktree</div>
-            <div class="community-card__avatar-wrap">
-              <div class="community-card__avatar-ring">
-                <img
-                  class="community-card__avatar"
-                  src="/assets/linktree.png"
-                  alt=""
-                  width="63"
-                  height="63"
-                  decoding="async"
-                  loading="lazy"
-                />
-              </div>
-            </div>
-            <a
-              class="btn community-cta"
-              href="https://linktr.ee/DUSD_CTO"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span>Open Linktree</span>
-            </a>
-          </article>
+          <a class="community-node interactive-surface" href="https://x.com/DUSD_CTO" target="_blank" rel="noopener noreferrer"><img src="/assets/xlogo.webp" alt="" /><span><small>CHANNEL / 01</small><strong>OFFICIAL X</strong></span><b>↗</b></a>
+          <a class="community-node interactive-surface" href="https://t.me/dusdSol" target="_blank" rel="noopener noreferrer"><img src="/assets/telegramlogo.webp" alt="" /><span><small>CHANNEL / 02</small><strong>TELEGRAM</strong></span><b>↗</b></a>
+          <a class="community-node interactive-surface" href="https://www.tiktok.com/@dusd_cto" target="_blank" rel="noopener noreferrer"><img src="/assets/tiktok.jpg" alt="" /><span><small>CHANNEL / 03</small><strong>TIKTOK</strong></span><b>↗</b></a>
+          <a class="community-node interactive-surface" href="https://linktr.ee/DUSD_CTO" target="_blank" rel="noopener noreferrer"><img src="/assets/linktree.png" alt="" /><span><small>CHANNEL / 04</small><strong>LINKTREE</strong></span><b>↗</b></a>
         </div>
       </section>
 
-      <section class="section section--community-after-mobile" aria-label="Banner">
-        <div class="gallery gallery--mobile gallery--mobile-single">
-          <div class="gallery-card">
-            <img
-              class="gallery-img gallery-img--mobile-full"
-              src="/assets/image5.png"
-              alt="DUSD banner"
-              loading="lazy"
-              decoding="async"
-            />
-          </div>
-        </div>
-      </section>
+      <footer class="footer"><span>DUSD / BURN MONITOR</span><span>DATA STREAM // SOLANA MAINNET</span><span>END OF LINE_</span></footer>
     </main>
 
-    <script type="module" src="/static/app.js?v=20260513"></script>
+    <script type="module" src="/static/app.js?v=20260711a"></script>
   </body>
 </html>
-

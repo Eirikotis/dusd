@@ -164,9 +164,12 @@ async function getJson(path) {
 
 const els = {
   totalBurned: document.getElementById("totalBurned"),
+  totalBurnedMirror: document.getElementById("totalBurnedMirror"),
   burnedValue: document.getElementById("burnedValue"),
   currentSupply: document.getElementById("currentSupply"),
+  currentSupplyMirror: document.getElementById("currentSupplyMirror"),
   burnedPct: document.getElementById("burnedPct"),
+  burnedPctMirror: document.getElementById("burnedPctMirror"),
   supplyRing: document.getElementById("supplyRing"),
   lastUpdatedPill: document.getElementById("lastUpdatedPill"),
   burnWindowAmount: document.getElementById("burnWindowAmount"),
@@ -561,25 +564,31 @@ function setActiveButtons(attr, value) {
 
 async function loadCurrent() {
   const cur = await getJson("/api/current");
-  els.totalBurned.textContent = cur.total_burned === null ? "N/A" : `${fmtNumFixed1(cur.total_burned)} DUSD`;
+  const totalBurnedText = cur.total_burned === null ? "N/A" : `${fmtNumFixed1(cur.total_burned)} DUSD`;
+  els.totalBurned.textContent = totalBurnedText;
+  if (els.totalBurnedMirror) els.totalBurnedMirror.textContent = totalBurnedText;
   els.burnedValue.textContent = cur.burned_value_usd_at_current_price === null ? "N/A" : fmtUsdFixed1(cur.burned_value_usd_at_current_price);
   els.priceUsd.textContent = cur.price_usd === null ? "N/A" : fmtUsd(cur.price_usd, 8);
   els.liquidityUsd.textContent = cur.liquidity_usd === null ? "N/A" : fmtUsd(cur.liquidity_usd, 2);
   currentPriceUsd = cur.price_usd === null || cur.price_usd === undefined ? null : Number(cur.price_usd);
   if (els.currentSupply) {
-    els.currentSupply.textContent = cur.current_supply === null ? "N/A" : `${fmtNumFixed1(cur.current_supply)} DUSD`;
+    const currentSupplyText = cur.current_supply === null ? "N/A" : `${fmtNumFixed1(cur.current_supply)} DUSD`;
+    els.currentSupply.textContent = currentSupplyText;
+    if (els.currentSupplyMirror) els.currentSupplyMirror.textContent = currentSupplyText;
   }
 
   const pct = cur.burned_pct_of_original === null ? null : Number(cur.burned_pct_of_original);
   if (els.burnedPct) {
-    els.burnedPct.textContent = pct === null || Number.isNaN(pct) ? "—" : `${fmtNum(pct, 2)}%`;
+    const burnedPctText = pct === null || Number.isNaN(pct) ? "—" : `${fmtNum(pct, 2)}%`;
+    els.burnedPct.textContent = burnedPctText;
+    if (els.burnedPctMirror) els.burnedPctMirror.textContent = burnedPctText;
   }
   if (pct !== null && Number.isFinite(pct) && els.supplyRing) {
     const clamped = Math.max(0, Math.min(100, pct));
     els.supplyRing.style.setProperty("--burnedPct", `${clamped}%`);
   }
   if (els.lastUpdatedPill) {
-    els.lastUpdatedPill.textContent = `last updated: ${fmtTimestampDual(cur.captured_at_ts)}`;
+    els.lastUpdatedPill.textContent = `SYNC / ${fmtTimestampDual(cur.captured_at_ts)}`;
   }
   return cur;
 }
@@ -971,8 +980,54 @@ function bind() {
   }
 }
 
+function bindPointerEffects() {
+  if (!window.matchMedia("(pointer: fine)").matches) return;
+
+  const aura = document.getElementById("cursorAura");
+  const surfaces = document.querySelectorAll(".interactive-surface");
+  let frame = 0;
+  let pointerX = window.innerWidth / 2;
+  let pointerY = window.innerHeight / 3;
+
+  const renderPointer = () => {
+    frame = 0;
+    document.documentElement.style.setProperty("--mx", `${pointerX}px`);
+    document.documentElement.style.setProperty("--my", `${pointerY}px`);
+    if (aura) {
+      aura.style.left = `${pointerX}px`;
+      aura.style.top = `${pointerY}px`;
+    }
+  };
+
+  window.addEventListener("pointermove", (event) => {
+    pointerX = event.clientX;
+    pointerY = event.clientY;
+    if (aura) aura.classList.add("is-visible");
+    if (!frame) frame = window.requestAnimationFrame(renderPointer);
+  }, { passive: true });
+
+  document.documentElement.addEventListener("mouseleave", () => {
+    if (aura) aura.classList.remove("is-visible");
+  });
+
+  surfaces.forEach((surface) => {
+    surface.addEventListener("pointermove", (event) => {
+      const rect = surface.getBoundingClientRect();
+      surface.style.setProperty("--local-x", `${event.clientX - rect.left}px`);
+      surface.style.setProperty("--local-y", `${event.clientY - rect.top}px`);
+    }, { passive: true });
+    surface.addEventListener("pointerenter", () => {
+      if (aura) aura.classList.add("is-active");
+    });
+    surface.addEventListener("pointerleave", () => {
+      if (aura) aura.classList.remove("is-active");
+    });
+  });
+}
+
 async function boot() {
   bind();
+  bindPointerEffects();
   syncBurnCustomDaysInput();
   setBurnWindowUiActive();
   await loadCurrent();
@@ -982,5 +1037,7 @@ async function boot() {
   await loadDailyBurnsChart();
 }
 
-boot().catch(() => {});
+boot().catch((error) => {
+  console.error("DUSD dashboard boot failed", error);
+});
 
