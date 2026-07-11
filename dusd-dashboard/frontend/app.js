@@ -736,15 +736,15 @@ async function loadBurnWindow() {
 
 function tradingChgHtml(pct) {
   if (pct === null || pct === undefined || Number.isNaN(Number(pct))) {
-    return `<span class="metric-inline-chg metric-inline-chg--na">(N/A)</span>`;
+    return `<span class="metric-inline-chg metric-inline-chg--na">N/A</span>`;
   }
   const n = Number(pct);
   const abs = Math.abs(n);
   const num = abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const direction = n > 0 ? "▲" : n < 0 ? "▼" : "•";
   const signed = (n > 0 ? "+" : n < 0 ? "-" : "") + num + "%";
-  const cls =
-    n > 0 ? "metric-inline-chg metric-inline-chg--pos" : "metric-inline-chg metric-inline-chg--neg";
-  return `<span class="${cls}">(${signed})</span>`;
+  const state = n > 0 ? "pos" : n < 0 ? "neg" : "flat";
+  return `<span class="metric-inline-chg metric-inline-chg--${state}"><span aria-hidden="true">${direction}</span>${signed}</span>`;
 }
 
 function setTradingMetricLine(el, primaryText, pct) {
