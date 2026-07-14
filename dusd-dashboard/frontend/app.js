@@ -605,8 +605,8 @@ function applyCurrent(cur) {
 function formatEstimatedDusd(value) {
   if (!Number.isFinite(value)) return "N/A";
   return `${value.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
   })} DUSD`;
 }
 
