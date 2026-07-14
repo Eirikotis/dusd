@@ -165,9 +165,11 @@ async function getJson(path) {
 const els = {
   totalBurned: document.getElementById("totalBurned"),
   totalBurnedMirror: document.getElementById("totalBurnedMirror"),
+  burnEstimateStatus: document.getElementById("burnEstimateStatus"),
   burnedValue: document.getElementById("burnedValue"),
   currentSupply: document.getElementById("currentSupply"),
   currentSupplyMirror: document.getElementById("currentSupplyMirror"),
+  supplyEstimateStatus: document.getElementById("supplyEstimateStatus"),
   burnedPct: document.getElementById("burnedPct"),
   burnedPctMirror: document.getElementById("burnedPctMirror"),
   supplyRing: document.getElementById("supplyRing"),
@@ -192,6 +194,14 @@ let burnCustomDays = 7;
 let burnMaxHistoryDays = 366;
 let tradeWindow = "24h";
 let currentPriceUsd = null;
+const liveBurnEstimate = {
+  baseBurned: null,
+  baseSupply: null,
+  burnPerSecond: null,
+  anchoredAtMs: null,
+  renderTimer: null,
+  refreshTimer: null,
+};
 /** Full list from API; rendering uses slice when collapsed. */
 let burnItems = [];
 let showAllBurns = false;
@@ -562,8 +572,7 @@ function setActiveButtons(attr, value) {
   });
 }
 
-async function loadCurrent() {
-  const cur = await getJson("/api/current");
+function applyCurrent(cur) {
   const totalBurnedText = cur.total_burned === null ? "N/A" : `${fmtNumFixed1(cur.total_burned)} DUSD`;
   els.totalBurned.textContent = totalBurnedText;
   if (els.totalBurnedMirror) els.totalBurnedMirror.textContent = totalBurnedText;
@@ -591,6 +600,103 @@ async function loadCurrent() {
     els.lastUpdatedPill.textContent = `SYNC / ${fmtTimestampDual(cur.captured_at_ts)}`;
   }
   return cur;
+}
+
+function formatEstimatedDusd(value) {
+  if (!Number.isFinite(value)) return "N/A";
+  return `${value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} DUSD`;
+}
+
+function setEstimateIndicators(active) {
+  if (els.burnEstimateStatus) els.burnEstimateStatus.hidden = !active;
+  if (els.supplyEstimateStatus) els.supplyEstimateStatus.hidden = !active;
+  els.totalBurned?.closest(".stat-cell")?.classList.toggle("is-estimating", active);
+  els.currentSupply?.closest(".stat-cell")?.classList.toggle("is-estimating", active);
+}
+
+function deactivateLiveBurnEstimate() {
+  liveBurnEstimate.baseBurned = null;
+  liveBurnEstimate.baseSupply = null;
+  liveBurnEstimate.burnPerSecond = null;
+  liveBurnEstimate.anchoredAtMs = null;
+  setEstimateIndicators(false);
+}
+
+function renderLiveBurnEstimate() {
+  const { baseBurned, baseSupply, burnPerSecond, anchoredAtMs } = liveBurnEstimate;
+  if (
+    !Number.isFinite(baseBurned) ||
+    !Number.isFinite(baseSupply) ||
+    !Number.isFinite(burnPerSecond) ||
+    burnPerSecond <= 0 ||
+    !Number.isFinite(anchoredAtMs)
+  ) {
+    return;
+  }
+
+  const elapsedSeconds = Math.max(0, (Date.now() - anchoredAtMs) / 1000);
+  const estimatedBurn = Math.min(baseSupply, burnPerSecond * elapsedSeconds);
+  const burnedNow = baseBurned + estimatedBurn;
+  const supplyNow = Math.max(0, baseSupply - estimatedBurn);
+  const burnedText = formatEstimatedDusd(burnedNow);
+  const supplyText = formatEstimatedDusd(supplyNow);
+
+  els.totalBurned.textContent = burnedText;
+  if (els.totalBurnedMirror) els.totalBurnedMirror.textContent = burnedText;
+  if (els.currentSupply) els.currentSupply.textContent = supplyText;
+  if (els.currentSupplyMirror) els.currentSupplyMirror.textContent = supplyText;
+}
+
+function anchorLiveBurnEstimate(current, metrics30d) {
+  const baseBurned = current?.total_burned == null ? NaN : Number(current.total_burned);
+  const baseSupply = current?.current_supply == null ? NaN : Number(current.current_supply);
+  const burnPerSecond =
+    metrics30d?.avg_burn_per_second == null ? NaN : Number(metrics30d.avg_burn_per_second);
+  const active =
+    Number.isFinite(baseBurned) &&
+    Number.isFinite(baseSupply) &&
+    baseSupply > 0 &&
+    Number.isFinite(burnPerSecond) &&
+    burnPerSecond > 0;
+
+  if (!active) {
+    deactivateLiveBurnEstimate();
+    return;
+  }
+  liveBurnEstimate.baseBurned = baseBurned;
+  liveBurnEstimate.baseSupply = baseSupply;
+  liveBurnEstimate.burnPerSecond = burnPerSecond;
+  liveBurnEstimate.anchoredAtMs = Date.now();
+  setEstimateIndicators(true);
+  renderLiveBurnEstimate();
+}
+
+async function refreshLiveBurnEstimate() {
+  try {
+    const [current, metrics30d] = await Promise.all([
+      getJson("/api/current"),
+      getJson("/api/metrics?window=30d"),
+    ]);
+    applyCurrent(current);
+    anchorLiveBurnEstimate(current, metrics30d);
+  } catch {
+    deactivateLiveBurnEstimate();
+  }
+}
+
+function startLiveBurnEstimate() {
+  if (liveBurnEstimate.renderTimer === null) {
+    const renderEveryMs = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1000 : 100;
+    liveBurnEstimate.renderTimer = window.setInterval(() => {
+      if (!document.hidden) renderLiveBurnEstimate();
+    }, renderEveryMs);
+  }
+  if (liveBurnEstimate.refreshTimer === null) {
+    liveBurnEstimate.refreshTimer = window.setInterval(refreshLiveBurnEstimate, 60_000);
+  }
 }
 
 function fmtUsdBurnWindow(amountUsd) {
@@ -1030,7 +1136,8 @@ async function boot() {
   bindPointerEffects();
   syncBurnCustomDaysInput();
   setBurnWindowUiActive();
-  await loadCurrent();
+  await refreshLiveBurnEstimate();
+  startLiveBurnEstimate();
   await loadBurnWindow();
   await loadTradingWindow();
   await loadBurns();

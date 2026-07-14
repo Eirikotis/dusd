@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260711b" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260714a" />
   </head>
   <body>
     <div class="page-grid" aria-hidden="true"></div>
@@ -53,6 +53,7 @@
           <div class="stat-index">01</div>
           <div class="k">TOTAL BURNED</div>
           <div class="v v-burn" id="totalBurned">--</div>
+          <div class="stat-estimate stat-estimate--up" id="burnEstimateStatus" hidden><i></i> 30D RATE / EST.</div>
           <div class="stat-bar stat-bar--orange"></div>
         </article>
         <article class="stat-cell interactive-surface">
@@ -65,6 +66,7 @@
           <div class="stat-index">03</div>
           <div class="k">CURRENT SUPPLY</div>
           <div class="v" id="currentSupply">--</div>
+          <div class="stat-estimate stat-estimate--down" id="supplyEstimateStatus" hidden><i></i> 30D RATE / EST.</div>
           <div class="stat-bar"></div>
         </article>
         <article class="stat-cell interactive-surface">
@@ -190,6 +192,6 @@
       <footer class="footer"><span>DUSD / BURN MONITOR</span><span>DATA STREAM // SOLANA MAINNET</span><span>END OF LINE_</span></footer>
     </main>
 
-    <script type="module" src="/static/app.js?v=20260711b"></script>
+    <script type="module" src="/static/app.js?v=20260714a"></script>
   </body>
 </html>

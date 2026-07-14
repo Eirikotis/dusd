@@ -165,6 +165,14 @@ button,a{-webkit-tap-highlight-color:transparent}
 .v-burn{color:var(--orange-soft)!important;text-shadow:0 0 18px rgba(255,104,28,.12)}
 .v-green,.online,.pos{color:var(--green-soft)!important}
 .neg{color:var(--orange)!important}
+.stat-estimate{display:flex;align-items:center;gap:6px;margin-top:8px;color:var(--muted-2);font-size:8px;font-weight:600;letter-spacing:.08em;line-height:1}
+.stat-estimate[hidden]{display:none}
+.stat-estimate i{width:5px;height:5px;border-radius:50%;background:currentColor;box-shadow:0 0 9px currentColor;animation:pulse 1.8s ease-in-out infinite}
+.stat-estimate--up{color:var(--orange-soft)}
+.stat-estimate--down{color:var(--green-soft)}
+.stat-cell.is-estimating .v{font-variant-numeric:tabular-nums;will-change:contents}
+.stat-cell.is-estimating .stat-bar{position:relative;overflow:hidden}
+.stat-cell.is-estimating .stat-bar::after{content:"";position:absolute;inset:0;width:22%;background:linear-gradient(90deg,transparent,currentColor,transparent);animation:estimate-sweep 2.8s linear infinite;opacity:.48}
 .stat-bar{height:1px;margin-top:14px;background:linear-gradient(90deg,rgba(238,242,237,.32) 25%,rgba(238,242,237,.04) 25%)}
 .stat-bar--orange{background:linear-gradient(90deg,var(--orange) 48%,rgba(255,104,28,.08) 48%)}
 .stat-bar--green{background:linear-gradient(90deg,var(--green) 66%,rgba(53,230,111,.08) 66%)}
@@ -280,6 +288,7 @@ button,a{-webkit-tap-highlight-color:transparent}
 @keyframes blink{0%,48%{opacity:1}49%,100%{opacity:0}}
 @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
 @keyframes rotate{to{transform:rotate(360deg)}}
+@keyframes estimate-sweep{from{transform:translateX(-120%)}to{transform:translateX(560%)}}
 
 @media (max-width:1050px){
   .dashboard-row--primary,.market-layout{grid-template-columns:1fr}
