@@ -38,20 +38,33 @@ button,a{-webkit-tap-highlight-color:transparent}
   inset:0;
   z-index:0;
   pointer-events:none;
+  overflow:hidden;
   background:
-    linear-gradient(180deg,rgba(3,4,3,.08),rgba(3,4,3,.38) 58%,rgba(3,4,3,.72)),
-    radial-gradient(900px circle at var(--mx) var(--my),rgba(255,104,28,.1),transparent 58%),
+    linear-gradient(180deg,rgba(3,4,3,0),rgba(3,4,3,.2) 58%,rgba(3,4,3,.48)),
+    radial-gradient(900px circle at var(--mx) var(--my),rgba(120,180,255,.055),transparent 58%),
     url("/assets/cosmic-terminal-bg.jpg") center top/cover no-repeat;
-  opacity:.72;
-  filter:saturate(.92) contrast(1.08) brightness(.78);
+  opacity:1;
+  filter:saturate(1) contrast(1.04) brightness(1.02);
+}
+.cosmic-backdrop::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:2;
+  background:url("/assets/cosmic-terminal-bg.jpg") center top/cover no-repeat;
+  opacity:.46;
+  filter:saturate(1.08) contrast(1.06) brightness(1.18);
+  mask-image:radial-gradient(330px circle at var(--mx) var(--my),black 0 30%,rgba(0,0,0,.78) 48%,transparent 74%);
+  -webkit-mask-image:radial-gradient(330px circle at var(--mx) var(--my),black 0 30%,rgba(0,0,0,.78) 48%,transparent 74%);
 }
 .cosmic-backdrop::after{
   content:"";
   position:absolute;
   inset:0;
+  z-index:1;
   background:
-    radial-gradient(circle at 50% 0%,transparent 0,rgba(3,4,3,.08) 42%,rgba(3,4,3,.66) 100%),
-    linear-gradient(90deg,rgba(3,4,3,.48),transparent 24%,transparent 76%,rgba(3,4,3,.52));
+    radial-gradient(circle at 50% 0%,transparent 0,rgba(3,4,3,.04) 42%,rgba(3,4,3,.48) 100%),
+    linear-gradient(90deg,rgba(3,4,3,.34),transparent 24%,transparent 76%,rgba(3,4,3,.38));
 }
 
 .page-grid{
@@ -69,7 +82,7 @@ button,a{-webkit-tap-highlight-color:transparent}
   content:"";
   position:absolute;
   inset:0;
-  background:radial-gradient(600px circle at var(--mx) var(--my),rgba(53,230,111,.055),transparent 70%);
+  background:radial-gradient(540px circle at var(--mx) var(--my),rgba(255,255,255,.018),transparent 68%);
 }
 .scanline{
   position:fixed;
@@ -80,7 +93,7 @@ button,a{-webkit-tap-highlight-color:transparent}
   height:12vh;
   pointer-events:none;
   opacity:.055;
-  background:linear-gradient(to bottom,transparent,rgba(53,230,111,.16),transparent);
+  background:linear-gradient(to bottom,transparent,rgba(130,180,255,.12),transparent);
   animation:scan 10s linear infinite;
 }
 .cursor-aura{
@@ -88,18 +101,18 @@ button,a{-webkit-tap-highlight-color:transparent}
   z-index:40;
   width:18px;
   height:18px;
-  border:1px solid rgba(255,104,28,.65);
+  border:1px solid rgba(180,215,255,.48);
   transform:translate(-50%,-50%);
   pointer-events:none;
   opacity:0;
   transition:opacity .2s ease,width .18s ease,height .18s ease,border-color .18s ease;
   mix-blend-mode:screen;
 }
-.cursor-aura::before,.cursor-aura::after{content:"";position:absolute;background:rgba(53,230,111,.55)}
+.cursor-aura::before,.cursor-aura::after{content:"";position:absolute;background:rgba(190,220,255,.48)}
 .cursor-aura::before{width:1px;height:7px;left:8px;top:5px}
 .cursor-aura::after{height:1px;width:7px;left:5px;top:8px}
 .cursor-aura.is-visible{opacity:.72}
-.cursor-aura.is-active{width:30px;height:30px;border-color:rgba(53,230,111,.75)}
+.cursor-aura.is-active{width:30px;height:30px;border-color:rgba(205,230,255,.65)}
 
 .topbar{
   position:sticky;
