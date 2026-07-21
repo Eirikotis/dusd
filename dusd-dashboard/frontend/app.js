@@ -645,9 +645,7 @@ function renderLiveBurnEstimate() {
   const supplyText = formatEstimatedDusd(supplyNow);
 
   els.totalBurned.textContent = burnedText;
-  if (els.totalBurnedMirror) els.totalBurnedMirror.textContent = burnedText;
   if (els.currentSupply) els.currentSupply.textContent = supplyText;
-  if (els.currentSupplyMirror) els.currentSupplyMirror.textContent = supplyText;
 }
 
 function anchorLiveBurnEstimate(current, metrics30d) {
