@@ -170,8 +170,10 @@ const els = {
   currentSupply: document.getElementById("currentSupply"),
   currentSupplyMirror: document.getElementById("currentSupplyMirror"),
   supplyEstimateStatus: document.getElementById("supplyEstimateStatus"),
-  burnedPct: document.getElementById("burnedPct"),
+  priceMultiple: document.getElementById("priceMultiple"),
   burnedPctMirror: document.getElementById("burnedPctMirror"),
+  totalBurnedBar: document.getElementById("totalBurnedBar"),
+  currentSupplyBar: document.getElementById("currentSupplyBar"),
   supplyRing: document.getElementById("supplyRing"),
   lastUpdatedPill: document.getElementById("lastUpdatedPill"),
   burnWindowAmount: document.getElementById("burnWindowAmount"),
@@ -580,6 +582,10 @@ function applyCurrent(cur) {
   els.priceUsd.textContent = cur.price_usd === null ? "N/A" : fmtUsd(cur.price_usd, 8);
   els.liquidityUsd.textContent = cur.liquidity_usd === null ? "N/A" : fmtUsd(cur.liquidity_usd, 2);
   currentPriceUsd = cur.price_usd === null || cur.price_usd === undefined ? null : Number(cur.price_usd);
+  if (els.priceMultiple) {
+    const price = cur.price_usd == null ? NaN : Number(cur.price_usd);
+    els.priceMultiple.textContent = Number.isFinite(price) && price > 0 ? `${fmtNumFixed1(1 / price)}x` : "N/A";
+  }
   if (els.currentSupply) {
     const currentSupplyText = cur.current_supply === null ? "N/A" : `${fmtNumFixed1(cur.current_supply)} DUSD`;
     els.currentSupply.textContent = currentSupplyText;
@@ -587,11 +593,11 @@ function applyCurrent(cur) {
   }
 
   const pct = cur.burned_pct_of_original === null ? null : Number(cur.burned_pct_of_original);
-  if (els.burnedPct) {
-    const burnedPctText = pct === null || Number.isNaN(pct) ? "—" : `${fmtNum(pct, 2)}%`;
-    els.burnedPct.textContent = burnedPctText;
-    if (els.burnedPctMirror) els.burnedPctMirror.textContent = burnedPctText;
+  const burnedPctText = pct === null || Number.isNaN(pct) ? "—" : `${fmtNum(pct, 2)}%`;
+  if (els.burnedPctMirror) {
+    els.burnedPctMirror.textContent = burnedPctText;
   }
+  setCoreSupplyBars(Number.isFinite(pct) ? pct : NaN);
   if (pct !== null && Number.isFinite(pct) && els.supplyRing) {
     const clamped = Math.max(0, Math.min(100, pct));
     els.supplyRing.style.setProperty("--burnedPct", `${clamped}%`);
@@ -608,6 +614,18 @@ function formatEstimatedDusd(value) {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   })} DUSD`;
+}
+
+function setCoreSupplyBars(burnedPct) {
+  if (!Number.isFinite(burnedPct)) {
+    if (els.totalBurnedBar) els.totalBurnedBar.style.setProperty("--barPct", "0%");
+    if (els.currentSupplyBar) els.currentSupplyBar.style.setProperty("--barPct", "0%");
+    return;
+  }
+  const burned = Math.max(0, Math.min(100, burnedPct));
+  const remaining = Math.max(0, Math.min(100, 100 - burned));
+  if (els.totalBurnedBar) els.totalBurnedBar.style.setProperty("--barPct", `${burned}%`);
+  if (els.currentSupplyBar) els.currentSupplyBar.style.setProperty("--barPct", `${remaining}%`);
 }
 
 function setEstimateIndicators(active) {
@@ -641,11 +659,14 @@ function renderLiveBurnEstimate() {
   const estimatedBurn = Math.min(baseSupply, burnPerSecond * elapsedSeconds);
   const burnedNow = baseBurned + estimatedBurn;
   const supplyNow = Math.max(0, baseSupply - estimatedBurn);
+  const originalSupply = baseBurned + baseSupply;
+  const burnedPctNow = originalSupply > 0 ? (burnedNow / originalSupply) * 100 : NaN;
   const burnedText = formatEstimatedDusd(burnedNow);
   const supplyText = formatEstimatedDusd(supplyNow);
 
   els.totalBurned.textContent = burnedText;
   if (els.currentSupply) els.currentSupply.textContent = supplyText;
+  setCoreSupplyBars(burnedPctNow);
 }
 
 function anchorLiveBurnEstimate(current, metrics30d) {

@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260721l" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260726a" />
   </head>
   <body>
     <div class="cosmic-backdrop" aria-hidden="true"></div>
@@ -55,7 +55,7 @@
           <div class="k">TOTAL BURNED</div>
           <div class="v v-burn" id="totalBurned">--</div>
           <div class="stat-estimate stat-estimate--up" id="burnEstimateStatus" hidden><i></i> 30D RATE / EST.</div>
-          <div class="stat-bar stat-bar--orange"></div>
+          <div class="stat-bar stat-bar--orange" id="totalBurnedBar"></div>
         </article>
         <article class="stat-cell interactive-surface">
           <div class="stat-index">02</div>
@@ -68,12 +68,12 @@
           <div class="k">CURRENT SUPPLY</div>
           <div class="v" id="currentSupply">--</div>
           <div class="stat-estimate stat-estimate--down" id="supplyEstimateStatus" hidden><i></i> 30D RATE / EST.</div>
-          <div class="stat-bar"></div>
+          <div class="stat-bar stat-bar--green" id="currentSupplyBar"></div>
         </article>
         <article class="stat-cell interactive-surface">
           <div class="stat-index">04</div>
-          <div class="k">SUPPLY BURNED</div>
-          <div class="v v-burn" id="burnedPct">--</div>
+          <div class="k">MULTIPLE TO $1</div>
+          <div class="v v-burn" id="priceMultiple">--</div>
           <div class="stat-bar stat-bar--orange"></div>
         </article>
       </section>
@@ -193,6 +193,6 @@
       <footer class="footer"><span>DUSD / BURN MONITOR</span><span>DATA STREAM // SOLANA MAINNET</span><span>END OF LINE_</span></footer>
     </main>
 
-    <script type="module" src="/static/app.js?v=20260721a"></script>
+    <script type="module" src="/static/app.js?v=20260726a"></script>
   </body>
 </html>

@@ -207,10 +207,10 @@ button,a{-webkit-tap-highlight-color:transparent}
 .stat-estimate--down{color:var(--green-soft)}
 .stat-cell.is-estimating .v{font-variant-numeric:tabular-nums;will-change:contents}
 .stat-cell.is-estimating .stat-bar{position:relative;overflow:hidden}
-.stat-cell.is-estimating .stat-bar::after{content:"";position:absolute;inset:0;width:22%;background:linear-gradient(90deg,transparent,currentColor,transparent);animation:estimate-sweep 2.8s linear infinite;opacity:.48}
-.stat-bar{height:1px;margin-top:14px;background:linear-gradient(90deg,rgba(238,242,237,.32) 25%,rgba(238,242,237,.04) 25%)}
-.stat-bar--orange{background:linear-gradient(90deg,var(--orange) 48%,rgba(255,104,28,.08) 48%)}
-.stat-bar--green{background:linear-gradient(90deg,var(--green) 66%,rgba(53,230,111,.08) 66%)}
+.stat-cell.is-estimating .stat-bar::after{content:"";position:absolute;inset:0;width:22%;background:linear-gradient(90deg,transparent,var(--barColor),transparent);animation:estimate-sweep 2.8s linear infinite;opacity:.48}
+.stat-bar{--barPct:25%;--barColor:rgba(238,242,237,.32);--barTrack:rgba(238,242,237,.04);height:1px;margin-top:14px;background:linear-gradient(90deg,var(--barColor) 0 var(--barPct),var(--barTrack) var(--barPct) 100%)}
+.stat-bar--orange{--barPct:48%;--barColor:var(--orange);--barTrack:rgba(255,104,28,.08)}
+.stat-bar--green{--barPct:66%;--barColor:var(--green);--barTrack:rgba(53,230,111,.08)}
 
 .dashboard-row{display:grid;gap:12px;margin-top:12px}
 .dashboard-row--primary{grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr)}
