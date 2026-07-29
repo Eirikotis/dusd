@@ -88,6 +88,43 @@ def migrate(conn: sqlite3.Connection) -> None:
             key TEXT PRIMARY KEY,
             value TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS scarcity_observations (
+            asset TEXT NOT NULL,
+            observed_on TEXT NOT NULL,
+            value REAL NOT NULL,
+            unit TEXT NOT NULL,
+            source TEXT NOT NULL,
+            source_frequency TEXT NOT NULL,
+            is_estimated INTEGER NOT NULL DEFAULT 0,
+            methodology TEXT,
+            fetched_at INTEGER NOT NULL,
+            PRIMARY KEY (asset, observed_on)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_scarcity_asset_date
+        ON scarcity_observations(asset, observed_on);
+
+        CREATE TABLE IF NOT EXISTS scarcity_rates (
+            asset TEXT PRIMARY KEY,
+            base_value REAL NOT NULL,
+            base_timestamp INTEGER NOT NULL,
+            rate_per_second REAL NOT NULL,
+            unit TEXT NOT NULL,
+            calculation_window TEXT NOT NULL,
+            methodology TEXT NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS scarcity_market_prices (
+            asset TEXT PRIMARY KEY,
+            price_usd REAL NOT NULL,
+            proxy_asset TEXT NOT NULL,
+            source TEXT NOT NULL,
+            source_url TEXT NOT NULL,
+            source_updated_at INTEGER,
+            fetched_at INTEGER NOT NULL
+        );
         """
     )
     conn.commit()

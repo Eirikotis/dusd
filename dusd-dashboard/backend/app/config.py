@@ -15,6 +15,8 @@ def _env(key: str, default: str | None = None) -> str | None:
 class Settings:
     dusd_mint: str
     helius_api_key: str | None
+    coingecko_api_key: str | None
+    admin_api_key: str | None
 
     seed_burn_csv: str
     sqlite_path: str
@@ -24,6 +26,8 @@ class Settings:
 
     run_scheduler: bool
     sync_on_start: bool
+    sync_interval_minutes: int
+    holder_sync_interval_minutes: int
 
     sig_page_size: int
     max_sig_pages: int
@@ -55,12 +59,18 @@ def load_settings() -> Settings:
     return Settings(
         dusd_mint=dusd_mint,
         helius_api_key=helius_api_key,
+        coingecko_api_key=_env("COINGECKO_API_KEY"),
+        admin_api_key=_env("ADMIN_API_KEY"),
         seed_burn_csv=_env("SEED_BURN_CSV", "../data/dusd_burn_log.csv") or "../data/dusd_burn_log.csv",
         sqlite_path=_env("SQLITE_PATH", "./data/dusd.db") or "./data/dusd.db",
         host=_env("HOST", "127.0.0.1") or "127.0.0.1",
         port=int(_env("PORT", "8787") or "8787"),
         run_scheduler=(_env("RUN_SCHEDULER", "1") or "1") == "1",
         sync_on_start=(_env("SYNC_ON_START", "1") or "1") == "1",
+        sync_interval_minutes=max(1, int(_env("SYNC_INTERVAL_MINUTES", "15") or "15")),
+        holder_sync_interval_minutes=max(
+            1, int(_env("HOLDER_SYNC_INTERVAL_MINUTES", "60") or "60")
+        ),
         sig_page_size=int(_env("SIG_PAGE_SIZE", "1000") or "1000"),
         max_sig_pages=int(_env("MAX_SIG_PAGES", "5") or "5"),
         parse_batch_size=int(_env("PARSE_BATCH_SIZE", "100") or "100"),

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import logging
+import secrets
 import threading
 import time
 from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -24,6 +25,11 @@ from .db import (
     upsert_hourly_snapshot,
 )
 from .metrics import current_overview, daily_burn_totals, recent_burns, timeframe_metrics, trading_metrics
+from .scarcity import (
+    scarcity_dashboard,
+    sync_scarcity_data,
+    sync_scarcity_market_prices,
+)
 from .sync import run_hourly_sync_once
 
 
@@ -64,6 +70,7 @@ def create_app() -> FastAPI:
         "last_success": None,
         "last_error": None,
     }
+    app.state.data_sync_lock = threading.Lock()
 
     # Static frontend
     frontend_dir = Path(__file__).resolve().parents[2] / "frontend"
@@ -119,12 +126,28 @@ def create_app() -> FastAPI:
     def api_burns_daily(days: int = 90):
         return {"points": daily_burn_totals(conn, days=days)}
 
+    @app.get("/api/scarcity")
+    def api_scarcity():
+        return scarcity_dashboard(conn)
+
+    @app.post("/api/admin/scarcity-sync")
+    def admin_scarcity_sync(x_admin_key: str | None = Header(default=None)):
+        _require_admin_key(settings.admin_api_key, x_admin_key)
+        with app.state.data_sync_lock:
+            return sync_scarcity_data(conn)
+
     @app.post("/api/admin/sync-once")
-    def admin_sync_once():
+    def admin_sync_once(x_admin_key: str | None = Header(default=None)):
+        _require_admin_key(settings.admin_api_key, x_admin_key)
         if not app.state.helius:
             raise HTTPException(400, "HELIUS_API_KEY not configured")
-        res = run_hourly_sync_once(settings=settings, helius=app.state.helius, dexs=app.state.dexs, conn=conn)
-        return res
+        with app.state.data_sync_lock:
+            return run_hourly_sync_once(
+                settings=settings,
+                helius=app.state.helius,
+                dexs=app.state.dexs,
+                conn=conn,
+            )
 
     @app.get("/api/debug/sync-status")
     def debug_sync_status():
@@ -141,54 +164,110 @@ def create_app() -> FastAPI:
         }
 
     def _sync_job():
-        app.state.sync_status["last_sync_start_ts"] = int(time.time())
-        app.state.sync_status["last_error"] = None
-        log.info("sync_job.start")
-        try:
-            h = app.state.helius
-            if h is None and settings.helius_rpc_url and settings.helius_parse_tx_url:
-                # late-init (env updated without restart is rare, but harmless)
-                app.state.helius = HeliusClient(
-                    rpc_url=settings.helius_rpc_url,
-                    parse_tx_url=settings.helius_parse_tx_url,
-                    sleep_s=settings.helius_sleep_s,
-                )
+        with app.state.data_sync_lock:
+            app.state.sync_status["last_sync_start_ts"] = int(time.time())
+            app.state.sync_status["last_error"] = None
+            log.info("sync_job.start")
+            try:
                 h = app.state.helius
+                if h is None and settings.helius_rpc_url and settings.helius_parse_tx_url:
+                    # late-init (env updated without restart is rare, but harmless)
+                    app.state.helius = HeliusClient(
+                        rpc_url=settings.helius_rpc_url,
+                        parse_tx_url=settings.helius_parse_tx_url,
+                        sleep_s=settings.helius_sleep_s,
+                    )
+                    h = app.state.helius
 
-            if h is None:
-                # No Helius configured: store a DEX-only hourly snapshot (supply/burn/holders remain null).
-                pairs = app.state.dexs.fetch_pairs(chain_id="solana", token_address=settings.dusd_mint)
-                best = app.state.dexs.choose_best_pair_by_liquidity_usd(pairs)
-                dex_snap = app.state.dexs.parse_snapshot(best)
-                hour_ts = int(time.time()) - (int(time.time()) % 3600)
-                upsert_hourly_snapshot(
-                    conn, hour_ts=hour_ts, snapshot=dex_snap, dusd_mint=settings.dusd_mint
-                )
+                if h is None:
+                    # No Helius configured: store a DEX-only snapshot.
+                    pairs = app.state.dexs.fetch_pairs(
+                        chain_id="solana", token_address=settings.dusd_mint
+                    )
+                    best = app.state.dexs.choose_best_pair_by_liquidity_usd(pairs)
+                    dex_snap = app.state.dexs.parse_snapshot(best)
+                    hour_ts = int(time.time()) - (int(time.time()) % 3600)
+                    upsert_hourly_snapshot(
+                        conn,
+                        hour_ts=hour_ts,
+                        snapshot=dex_snap,
+                        dusd_mint=settings.dusd_mint,
+                    )
+                else:
+                    run_hourly_sync_once(
+                        settings=settings,
+                        helius=h,
+                        dexs=app.state.dexs,
+                        conn=conn,
+                    )
+
+                try:
+                    market_result = sync_scarcity_market_prices(
+                        conn, coingecko_api_key=settings.coingecko_api_key
+                    )
+                    log.info("market_prices.ok result=%s", market_result)
+                except Exception:
+                    # Keep serving the last successful prices if the public
+                    # market-data source is temporarily unavailable.
+                    log.exception("market_prices.fail")
                 app.state.sync_status["last_success"] = True
-                return
+            except Exception as e:
+                # best-effort scheduler; surface via logs when run locally
+                app.state.sync_status["last_success"] = False
+                app.state.sync_status["last_error"] = str(e)
+                log.exception("sync_job.fail")
+            finally:
+                app.state.sync_status["last_sync_end_ts"] = int(time.time())
+                log.info("sync_job.end success=%s", app.state.sync_status["last_success"])
 
-            run_hourly_sync_once(settings=settings, helius=h, dexs=app.state.dexs, conn=conn)
-            app.state.sync_status["last_success"] = True
-        except Exception as e:
-            # best-effort scheduler; surface via logs when run locally
-            app.state.sync_status["last_success"] = False
-            app.state.sync_status["last_error"] = str(e)
-            log.exception("sync_job.fail")
-        finally:
-            app.state.sync_status["last_sync_end_ts"] = int(time.time())
-            log.info("sync_job.end success=%s", app.state.sync_status["last_success"])
+    def _scarcity_job():
+        with app.state.data_sync_lock:
+            log.info("scarcity_job.start")
+            try:
+                result = sync_scarcity_data(conn)
+                log.info("scarcity_job.end result=%s", result)
+            except Exception:
+                log.exception("scarcity_job.fail")
 
     if settings.run_scheduler:
         sched = BackgroundScheduler(daemon=True)
-        sched.add_job(_sync_job, "interval", hours=1, id="hourly_sync", max_instances=1, coalesce=True)
+        sched.add_job(
+            _sync_job,
+            "interval",
+            minutes=settings.sync_interval_minutes,
+            id="incremental_sync",
+            max_instances=1,
+            coalesce=True,
+        )
+        sched.add_job(
+            _scarcity_job,
+            "interval",
+            hours=24,
+            id="daily_scarcity_sync",
+            max_instances=1,
+            coalesce=True,
+        )
         sched.start()
         app.state.scheduler = sched
-        log.info("scheduler.started interval=1h sync_on_start=%s", settings.sync_on_start)
+        log.info(
+            "scheduler.started sync_interval=%dm holder_interval=%dm sync_on_start=%s",
+            settings.sync_interval_minutes,
+            settings.holder_sync_interval_minutes,
+            settings.sync_on_start,
+        )
 
         if settings.sync_on_start:
             threading.Thread(target=_sync_job, daemon=True).start()
+            threading.Thread(target=_scarcity_job, daemon=True).start()
 
     return app
+
+
+def _require_admin_key(configured_key: str | None, supplied_key: str | None) -> None:
+    if not configured_key:
+        raise HTTPException(status_code=503, detail="Admin API is disabled")
+    if not supplied_key or not secrets.compare_digest(supplied_key, configured_key):
+        raise HTTPException(status_code=401, detail="Invalid admin key")
 
 
 def main():

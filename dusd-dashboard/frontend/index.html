@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260726a" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260729g" />
   </head>
   <body>
     <div class="cosmic-backdrop" aria-hidden="true"></div>
@@ -167,8 +167,153 @@
         </div>
       </section>
 
+      <section class="section-block scarcity-section" aria-labelledby="scarcity-title">
+        <div class="section-heading scarcity-heading">
+          <div>
+            <span class="section-index">03 / SCARCITY</span>
+            <h2 id="scarcity-title">Scarcity is a supply curve</h2>
+            <p>Gold is mined. Bitcoin is issued. US money supply has no fixed cap. DUSD is burned.</p>
+          </div>
+          <span class="scarcity-window" id="scarcityWindow">COMMON WINDOW / --</span>
+        </div>
+
+        <article class="panel scarcity-chart-panel interactive-surface">
+          <div class="panel-head scarcity-panel-head">
+            <div>
+              <span class="panel-path">~/monetary-supply</span>
+              <h3>Monetary supply comparison</h3>
+              <p>Every series begins at 100 on the first common tracked date.</p>
+            </div>
+            <div class="seg" role="tablist" aria-label="Scarcity chart mode">
+              <button type="button" class="seg-btn is-active" data-scarcity-mode="indexed">INDEXED</button>
+              <button type="button" class="seg-btn" data-scarcity-mode="growth">GROWTH</button>
+            </div>
+          </div>
+          <div class="scarcity-indexed-view" id="scarcityIndexedView">
+            <div class="scarcity-chart-body">
+              <svg id="scarcitySvg" class="scarcity-svg" viewBox="0 0 900 360" preserveAspectRatio="none" role="img" aria-label="Indexed monetary supply comparison chart"></svg>
+              <div class="scarcity-tooltip" id="scarcityTooltip" hidden></div>
+            </div>
+          </div>
+          <div class="scarcity-growth-view" id="scarcityGrowthView" hidden>
+            <div class="growth-scale"><span>CONTRACTING</span><i></i><span>EXPANDING</span></div>
+            <div class="growth-bars" id="scarcityGrowthBars"></div>
+          </div>
+          <div class="scarcity-legend" id="scarcityLegend"></div>
+        </article>
+
+        <article class="panel supply-clock-panel interactive-surface">
+          <div class="panel-head">
+            <div>
+              <span class="panel-path">~/reference-pace</span>
+              <h3>Supply clock</h3>
+              <p>Estimated movement at each asset's stated reference pace.</p>
+            </div>
+            <span class="clock-state"><i></i> TICKING</span>
+          </div>
+          <div class="supply-clock-grid" id="supplyClockGrid">
+            <div class="supply-clock-cell" data-clock-asset="DUSD">
+              <span>DUSD / BURNED</span><strong id="clockDUSD">--</strong><small id="clockDeltaDUSD">SINCE OPEN / --</small><em id="clockRateDUSD">--</em>
+            </div>
+            <div class="supply-clock-cell" data-clock-asset="BTC">
+              <span>BITCOIN / ISSUED</span><strong id="clockBTC">--</strong><small id="clockDeltaBTC">SINCE OPEN / --</small><em id="clockRateBTC">--</em>
+            </div>
+            <div class="supply-clock-cell" data-clock-asset="GOLD">
+              <span>GOLD / MINED</span><strong id="clockGOLD">--</strong><small id="clockDeltaGOLD">SINCE OPEN / --</small><em id="clockRateGOLD">--</em>
+            </div>
+            <div class="supply-clock-cell" data-clock-asset="M2">
+              <span>US M2 / MANAGED</span><strong id="clockM2">--</strong><small id="clockDeltaM2">SINCE OPEN / --</small><em id="clockRateM2">--</em>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel scarcity-ratio-panel interactive-surface">
+          <div class="ratio-copy">
+            <span class="panel-path">~/dusd-relative-to-m2</span>
+            <h3>DUSD outstanding per $1 trillion of US M2</h3>
+            <div class="ratio-value-line">
+              <strong id="scarcityRatioValue">--</strong>
+            </div>
+            <div class="ratio-change-grid">
+              <div><small id="scarcityRatioPeriod">TRACKED / --</small><span id="scarcityRatioChange">--</span></div>
+              <div><small>EST. YEARLY / CURRENT PACE</small><span id="scarcityRatioAnnual">--</span></div>
+            </div>
+            <p>Falls when DUSD is burned, US M2 expands, or both.</p>
+          </div>
+          <div class="ratio-chart-wrap">
+            <svg id="scarcityRatioSvg" class="ratio-svg" viewBox="0 0 620 166" preserveAspectRatio="none" role="img" aria-label="DUSD outstanding per one trillion dollars of US M2 over time"></svg>
+          </div>
+        </article>
+
+        <div class="scarcity-strip" aria-label="Supply mechanism comparison">
+          <div><span>DUSD</span><strong>BURNED</strong><small>Supply contracts</small></div>
+          <div><span>BITCOIN</span><strong>ISSUED</strong><small>Issuance declines</small></div>
+          <div><span>GOLD</span><strong>MINED</strong><small>Stock expands</small></div>
+          <div><span>US M2</span><strong>MANAGED</strong><small>No fixed cap</small></div>
+        </div>
+
+        <article class="panel parity-panel interactive-surface" id="market-cap-parity">
+          <div class="panel-head parity-head">
+            <div>
+              <span class="panel-path">/MARKET-CAP-PARITY</span>
+              <h3>WHAT DUSD IS WORTH AT MONETARY SCALE</h3>
+              <p>The price of one DUSD at the market value of Bitcoin, gold, or US M2 — calculated using today’s circulating supply.</p>
+            </div>
+            <span class="parity-state">TODAY’S DUSD SUPPLY</span>
+          </div>
+
+          <div class="parity-current">
+            <div class="parity-current-cap">
+              <span>DUSD TODAY</span>
+              <small>CURRENT MARKET CAP</small>
+              <strong id="parityDusdMarketCap">--</strong>
+            </div>
+            <div class="parity-current-context" id="parityDusdContext">--</div>
+          </div>
+
+          <div class="parity-scenarios" id="parityScenarios">
+            <div class="parity-empty">AWAITING MARKET DATA...</div>
+          </div>
+
+          <div class="holdings-lab">
+            <div class="holdings-copy">
+              <span class="holdings-path">/POSITION-CALCULATOR</span>
+              <strong>REPRICE YOUR DUSD</strong>
+              <small>Enter your holdings to see their value at each DUSD price above.</small>
+            </div>
+            <div class="holdings-input-area">
+              <label for="scarcityHoldingsInput">ENTER DUSD HOLDINGS</label>
+              <div class="holdings-input-wrap">
+                <span>&gt;</span>
+                <input id="scarcityHoldingsInput" type="text" inputmode="decimal" autocomplete="off" value="100,000" aria-label="Your DUSD holdings" />
+                <em>DUSD</em>
+              </div>
+              <small class="holdings-edit-hint">CLICK TO EDIT</small>
+            </div>
+            <div class="holdings-results" id="holdingsResults">
+              <div><h4>Bitcoin</h4><small>-- DUSD × --</small><strong>--</strong></div>
+              <div><h4>Gold</h4><small>-- DUSD × --</small><strong>--</strong></div>
+              <div><h4>US M2</h4><small>-- DUSD × --</small><strong>--</strong></div>
+            </div>
+          </div>
+
+          <div class="parity-foot">
+            <span id="parityUpdated">MARKET DATA / --</span>
+            <span>MARKET-CAP PARITY / TODAY’S DUSD SUPPLY</span>
+          </div>
+        </article>
+
+        <p class="scarcity-sources">
+          SOURCES / DUSD ON-CHAIN LEDGER ·
+          <a href="https://www.blockchain.com/explorer/charts/total-bitcoins" target="_blank" rel="noopener noreferrer">BLOCKCHAIN.COM</a> ·
+          <a href="https://fred.stlouisfed.org/series/M2SL" target="_blank" rel="noopener noreferrer">FRED M2SL</a> ·
+          <a href="https://www.gold.org/goldhub/data/how-much-gold" target="_blank" rel="noopener noreferrer">WORLD GOLD COUNCIL</a> &middot;
+          <a href="https://www.coingecko.com/" target="_blank" rel="noopener noreferrer">COINGECKO</a>
+        </p>
+      </section>
+
       <section class="section-block" aria-labelledby="ledger-title">
-        <div class="section-heading"><div><span class="section-index">03 / LEDGER</span><h2 id="ledger-title">Recent burns</h2></div><span class="live-tag"><i></i> LIVE FEED</span></div>
+        <div class="section-heading"><div><span class="section-index">04 / LEDGER</span><h2 id="ledger-title">Recent burns</h2></div><span class="live-tag"><i></i> LIVE FEED</span></div>
         <div class="panel table-panel interactive-surface">
           <div class="table-wrap">
             <table class="table">
@@ -181,11 +326,11 @@
       </section>
 
       <section class="section-block community-section" aria-labelledby="community-heading">
-        <div class="section-heading"><div><span class="section-index">04 / NETWORK</span><h2 id="community-heading">Community uplinks</h2></div></div>
+        <div class="section-heading"><div><span class="section-index">05 / NETWORK</span><h2 id="community-heading">Community uplinks</h2></div></div>
         <div class="community-grid">
           <a class="community-node interactive-surface" href="https://x.com/DUSD_CTO" target="_blank" rel="noopener noreferrer"><img src="/assets/xlogo.webp" alt="" /><span><small>CHANNEL / 01</small><strong>OFFICIAL X</strong></span><b>↗</b></a>
           <a class="community-node interactive-surface" href="https://t.me/dusdSol" target="_blank" rel="noopener noreferrer"><img src="/assets/telegramlogo.webp" alt="" /><span><small>CHANNEL / 02</small><strong>TELEGRAM</strong></span><b>↗</b></a>
-          <a class="community-node interactive-surface" href="https://x.com/DUSDstats" target="_blank" rel="noopener noreferrer"><img src="/assets/dusd-stats-x.png" alt="" /><span><small>CHANNEL / 03</small><strong>DUSD STATS X</strong></span><b>↗</b></a>
+          <a class="community-node interactive-surface" href="https://x.com/DUSDstats" target="_blank" rel="noopener noreferrer"><img src="/assets/dusd-stats-x.png?v=20260728" alt="" /><span><small>CHANNEL / 03</small><strong>DUSD STATS X</strong></span><b>↗</b></a>
           <a class="community-node interactive-surface" href="https://www.tiktok.com/@dusd_cto" target="_blank" rel="noopener noreferrer"><img src="/assets/tiktok.jpg" alt="" /><span><small>CHANNEL / 04</small><strong>TIKTOK</strong></span><b>↗</b></a>
         </div>
       </section>
@@ -193,6 +338,6 @@
       <footer class="footer"><span>DUSD / BURN MONITOR</span><span>DATA STREAM // SOLANA MAINNET</span><span>END OF LINE_</span></footer>
     </main>
 
-    <script type="module" src="/static/app.js?v=20260726a"></script>
+    <script type="module" src="/static/app.js?v=20260729g"></script>
   </body>
 </html>

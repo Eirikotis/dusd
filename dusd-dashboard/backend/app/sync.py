@@ -50,11 +50,6 @@ def sync_incremental_burns(*, settings: Settings, helius: HeliusClient, conn) ->
         before = sigs[-1]
         time.sleep(settings.helius_sleep_s)
 
-    # Update last_seen to newest signature we observed, even if there were no burns,
-    # so we don't re-scan the same signature range every hour.
-    if all_new_sigs:
-        state_set(conn, "last_seen_burn_signature", all_new_sigs[0])
-
     # Parse only unseen signatures; keep only BURN transactions for the mint.
     burn_rows: list[dict[str, Any]] = []
     for batch in _chunk(all_new_sigs, settings.parse_batch_size):
@@ -65,6 +60,11 @@ def sync_incremental_burns(*, settings: Settings, helius: HeliusClient, conn) ->
         time.sleep(settings.helius_sleep_s)
 
     inserted = insert_burn_events(conn, burn_rows)
+    # Advance only after every batch was parsed and stored. A transient parser
+    # failure must not skip signatures on the next run.
+    if all_new_sigs:
+        state_set(conn, "last_seen_burn_signature", all_new_sigs[0])
+        conn.commit()
     log.info(
         "burn_sync.end scanned=%d parsed_burns=%d inserted=%d reached_last_seen=%s last_seen_after=%s",
         len(all_new_sigs),
@@ -96,7 +96,13 @@ def fetch_current_holder_count(*, settings: Settings, helius: HeliusClient) -> i
         return None
 
 
-def fetch_current_snapshot(*, settings: Settings, helius: HeliusClient, dexs: DexScreenerClient) -> dict[str, Any]:
+def fetch_current_snapshot(
+    *,
+    settings: Settings,
+    helius: HeliusClient,
+    dexs: DexScreenerClient,
+    refresh_holders: bool = True,
+) -> dict[str, Any]:
     # Helius supply
     supply_ui = None
     try:
@@ -113,7 +119,11 @@ def fetch_current_snapshot(*, settings: Settings, helius: HeliusClient, dexs: De
     if supply_ui is not None:
         total_burned = float(settings.original_supply) - float(supply_ui)
 
-    holder_count = fetch_current_holder_count(settings=settings, helius=helius) if settings.helius_rpc_url else None
+    holder_count = (
+        fetch_current_holder_count(settings=settings, helius=helius)
+        if settings.helius_rpc_url and refresh_holders
+        else None
+    )
 
     # DexScreener
     dex_snap: dict[str, Any]
@@ -134,12 +144,54 @@ def fetch_current_snapshot(*, settings: Settings, helius: HeliusClient, dexs: De
     }
 
 
-def run_hourly_sync_once(*, settings: Settings, helius: HeliusClient, dexs: DexScreenerClient, conn) -> dict[str, Any]:
+def _latest_holder_count(conn, *, dusd_mint: str) -> int | None:
+    row = conn.execute(
+        """
+        SELECT holder_count
+        FROM token_snapshots_hourly
+        WHERE dusd_mint = ? AND holder_count IS NOT NULL
+        ORDER BY hour_ts DESC
+        LIMIT 1
+        """,
+        (dusd_mint,),
+    ).fetchone()
+    return None if row is None else int(row["holder_count"])
+
+
+def _holder_refresh_due(conn, *, interval_minutes: int, now_ts: int | None = None) -> bool:
+    last_raw = state_get(conn, "last_holder_sync_ts")
+    if not last_raw:
+        return True
+    try:
+        last_ts = int(last_raw)
+    except (TypeError, ValueError):
+        return True
+    now = int(now_ts or time.time())
+    return now - last_ts >= max(1, interval_minutes) * 60
+
+
+def run_hourly_sync_once(
+    *, settings: Settings, helius: HeliusClient, dexs: DexScreenerClient, conn
+) -> dict[str, Any]:
     burn_res = None
     if settings.helius_rpc_url and settings.helius_parse_tx_url:
         burn_res = sync_incremental_burns(settings=settings, helius=helius, conn=conn)
 
-    snap = fetch_current_snapshot(settings=settings, helius=helius, dexs=dexs)
+    refresh_holders = _holder_refresh_due(
+        conn, interval_minutes=settings.holder_sync_interval_minutes
+    )
+    snap = fetch_current_snapshot(
+        settings=settings,
+        helius=helius,
+        dexs=dexs,
+        refresh_holders=refresh_holders,
+    )
+    if refresh_holders and snap.get("holder_count") is not None:
+        state_set(conn, "last_holder_sync_ts", str(int(time.time())))
+        conn.commit()
+    elif snap.get("holder_count") is None:
+        snap["holder_count"] = _latest_holder_count(conn, dusd_mint=settings.dusd_mint)
+
     hour_ts = _hour_floor_ts()
     inserted = upsert_hourly_snapshot(conn, hour_ts=hour_ts, snapshot=snap, dusd_mint=settings.dusd_mint)
     log.info("snapshot.upsert hour_ts=%d changed=%s", hour_ts, inserted)
@@ -157,6 +209,7 @@ def run_hourly_sync_once(*, settings: Settings, helius: HeliusClient, dexs: DexS
         "burn_sync": burn_res,
         "snapshot_hour_ts": hour_ts,
         "snapshot_inserted": inserted,
+        "holders_refreshed": refresh_holders,
         "snapshot": snap,
     }
 

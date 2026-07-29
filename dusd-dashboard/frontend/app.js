@@ -219,6 +219,18 @@ let dailyBurnPlotState = null;
 let dailyBurnPointsRaw = [];
 /** `"30d"` | `"all"` — default 30D. */
 let dailyBurnChartRange = "30d";
+let scarcityData = null;
+let scarcityMode = "indexed";
+let scarcityChartGeometry = null;
+let scarcityClockTimer = null;
+let scarcityDataRefreshTimer = null;
+const scarcityPageOpenedAt = Date.now();
+const SCARCITY_COLORS = {
+  DUSD: "#ff8b45",
+  BTC: "#e6ece5",
+  GOLD: "#d6a34b",
+  M2: "#35e66f",
+};
 
 function buildDailyBurnCleanedSeries(raw) {
   const arr = Array.isArray(raw) ? raw : [];
@@ -1081,6 +1093,564 @@ function bindBurnWindowControls() {
   }
 }
 
+function scarcitySvgNode(name, attrs = {}, text = null) {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+  Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, String(value)));
+  if (text !== null) node.textContent = text;
+  return node;
+}
+
+function scarcityValueLabel(asset, value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "--";
+  if (asset === "DUSD") return `${fmtNum(n, 1)} DUSD`;
+  if (asset === "BTC") return `${fmtNum(n, 3)} BTC`;
+  if (asset === "GOLD") return `${fmtNum(n, 1)} t`;
+  if (asset === "M2") return `$${fmtNum(n / 1000, 3)}T`;
+  return fmtNum(n, 2);
+}
+
+function scarcitySigned(value, digits = 2, suffix = "%") {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "--";
+  const sign = n > 0 ? "+" : n < 0 ? "-" : "";
+  return `${sign}${Math.abs(n).toLocaleString(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })}${suffix}`;
+}
+
+function scarcityDateMs(day) {
+  const [year, month, dateNum] = String(day).split("-").map(Number);
+  return Date.UTC(year, month - 1, dateNum);
+}
+
+function renderScarcityLegend() {
+  const legend = document.getElementById("scarcityLegend");
+  if (!legend || !scarcityData) return;
+  legend.innerHTML = "";
+  scarcityData.series.forEach((series) => {
+    const item = document.createElement("span");
+    item.style.setProperty("--series-color", SCARCITY_COLORS[series.asset]);
+    const quality =
+      series.asset === "M2" ? "MONTHLY / STEP" : series.quality === "estimated" ? "ESTIMATED" : "OBSERVED";
+    item.innerHTML = `<i></i>${series.label}<small>${quality}</small>`;
+    legend.appendChild(item);
+  });
+}
+
+function renderScarcityIndexed() {
+  const svg = document.getElementById("scarcitySvg");
+  const body = svg?.closest(".scarcity-chart-body");
+  if (!svg || !body || !scarcityData?.series?.length) return;
+
+  const width = Math.max(340, Math.round(body.clientWidth - 4));
+  const compact = width < 620;
+  const height = compact ? 292 : 350;
+  const margin = { top: 16, right: compact ? 10 : 20, bottom: 34, left: compact ? 42 : 54 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.innerHTML = "";
+
+  const allPoints = scarcityData.series.flatMap((series) => series.points || []);
+  const allIndexes = allPoints.map((point) => Number(point.index)).filter(Number.isFinite);
+  if (!allIndexes.length) return;
+  const rawMin = Math.min(...allIndexes);
+  const rawMax = Math.max(...allIndexes);
+  let yMin = Math.floor(rawMin - 0.75);
+  let yMax = Math.ceil(rawMax + 0.75);
+  if (yMax - yMin < 4) {
+    const mid = (yMax + yMin) / 2;
+    yMin = mid - 2;
+    yMax = mid + 2;
+  }
+
+  const startMs = scarcityDateMs(scarcityData.window.start);
+  const endMs = scarcityDateMs(scarcityData.window.end);
+  const spanMs = Math.max(86_400_000, endMs - startMs);
+  const xFor = (day) => margin.left + ((scarcityDateMs(day) - startMs) / spanMs) * plotW;
+  const yFor = (value) => margin.top + ((yMax - Number(value)) / (yMax - yMin)) * plotH;
+
+  for (let i = 0; i <= 4; i++) {
+    const value = yMin + ((yMax - yMin) * i) / 4;
+    const y = yFor(value);
+    svg.appendChild(
+      scarcitySvgNode("line", {
+        x1: margin.left,
+        y1: y,
+        x2: width - margin.right,
+        y2: y,
+        stroke: Math.abs(value - 100) < 0.01 ? "rgba(255,104,28,.28)" : "rgba(255,255,255,.075)",
+        "stroke-width": Math.abs(value - 100) < 0.01 ? 1.2 : 1,
+        "stroke-dasharray": Math.abs(value - 100) < 0.01 ? "4 5" : "0",
+      }),
+    );
+    svg.appendChild(
+      scarcitySvgNode(
+        "text",
+        { x: margin.left - 8, y: y + 3, fill: "#707a70", "font-size": 8, "text-anchor": "end" },
+        value.toFixed(1),
+      ),
+    );
+  }
+
+  const xLabels = [
+    scarcityData.window.start,
+    new Date(startMs + spanMs / 2).toISOString().slice(0, 10),
+    scarcityData.window.end,
+  ];
+  xLabels.forEach((day, index) => {
+    const x = xFor(day);
+    svg.appendChild(
+      scarcitySvgNode(
+        "text",
+        {
+          x,
+          y: height - 9,
+          fill: "#707a70",
+          "font-size": 8,
+          "text-anchor": index === 0 ? "start" : index === 2 ? "end" : "middle",
+        },
+        formatDayLabel(day).toUpperCase(),
+      ),
+    );
+  });
+
+  const plotted = [];
+  scarcityData.series.forEach((series) => {
+    const points = (series.points || []).filter((point) => Number.isFinite(Number(point.index)));
+    if (!points.length) return;
+    const coords = points.map((point) => ({ ...point, x: xFor(point.date), y: yFor(point.index) }));
+    let path = `M ${coords[0].x} ${coords[0].y}`;
+    for (let i = 1; i < coords.length; i++) {
+      if (series.asset === "M2") path += ` H ${coords[i].x} V ${coords[i].y}`;
+      else path += ` L ${coords[i].x} ${coords[i].y}`;
+    }
+    svg.appendChild(
+      scarcitySvgNode("path", {
+        d: path,
+        fill: "none",
+        stroke: SCARCITY_COLORS[series.asset],
+        "stroke-width": series.asset === "DUSD" ? 2.4 : 1.6,
+        "stroke-dasharray": series.asset === "GOLD" ? "6 5" : "0",
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round",
+        opacity: series.asset === "DUSD" ? 1 : 0.83,
+      }),
+    );
+    const last = coords[coords.length - 1];
+    svg.appendChild(
+      scarcitySvgNode("circle", {
+        cx: last.x,
+        cy: last.y,
+        r: series.asset === "DUSD" ? 3.5 : 2.5,
+        fill: SCARCITY_COLORS[series.asset],
+      }),
+    );
+    plotted.push({ ...series, coords });
+  });
+
+  const hoverLine = scarcitySvgNode("line", {
+    x1: margin.left,
+    y1: margin.top,
+    x2: margin.left,
+    y2: height - margin.bottom,
+    stroke: "rgba(255,255,255,.28)",
+    "stroke-width": 1,
+    "stroke-dasharray": "3 4",
+    opacity: 0,
+  });
+  svg.appendChild(hoverLine);
+  scarcityChartGeometry = { width, height, margin, plotW, startMs, spanMs, plotted, hoverLine };
+}
+
+function setupScarcityChartInteractions() {
+  const svg = document.getElementById("scarcitySvg");
+  const body = svg?.closest(".scarcity-chart-body");
+  const tooltip = document.getElementById("scarcityTooltip");
+  if (!svg || !body || !tooltip || body.dataset.scarcityBound === "1") return;
+  body.dataset.scarcityBound = "1";
+
+  body.addEventListener("pointermove", (event) => {
+    if (!scarcityChartGeometry?.plotted?.length) return;
+    const geometry = scarcityChartGeometry;
+    const rect = svg.getBoundingClientRect();
+    const svgX = ((event.clientX - rect.left) / rect.width) * geometry.width;
+    const clampedX = Math.max(geometry.margin.left, Math.min(geometry.width - geometry.margin.right, svgX));
+    const targetMs = geometry.startMs + ((clampedX - geometry.margin.left) / geometry.plotW) * geometry.spanMs;
+    const rows = geometry.plotted.map((series) => {
+      let nearest = series.coords[0];
+      let nearestDistance = Infinity;
+      series.coords.forEach((point) => {
+        const distance = Math.abs(scarcityDateMs(point.date) - targetMs);
+        if (distance < nearestDistance) {
+          nearest = point;
+          nearestDistance = distance;
+        }
+      });
+      return { series, point: nearest };
+    });
+    if (!rows.length) return;
+    const dateLabel = rows[0].point.date;
+    geometry.hoverLine.setAttribute("x1", clampedX);
+    geometry.hoverLine.setAttribute("x2", clampedX);
+    geometry.hoverLine.setAttribute("opacity", "1");
+    tooltip.innerHTML =
+      `<strong>${formatCalendarDayUk(dateLabel)}</strong>` +
+      rows
+        .map(({ series, point }) => {
+          const change = Number(point.index) - 100;
+          return `<span><i style="color:${SCARCITY_COLORS[series.asset]}">${series.label}</i><b>${Number(point.index).toFixed(2)} / ${scarcityValueLabel(series.asset, point.value)} / ${scarcitySigned(change)}</b></span>`;
+        })
+        .join("");
+    const bodyRect = body.getBoundingClientRect();
+    tooltip.style.left = `${Math.max(105, Math.min(bodyRect.width - 105, event.clientX - bodyRect.left))}px`;
+    tooltip.style.top = `${Math.max(82, event.clientY - bodyRect.top)}px`;
+    tooltip.hidden = false;
+  });
+  body.addEventListener("pointerleave", () => {
+    tooltip.hidden = true;
+    if (scarcityChartGeometry?.hoverLine) scarcityChartGeometry.hoverLine.setAttribute("opacity", "0");
+  });
+}
+
+function renderScarcityGrowth() {
+  const root = document.getElementById("scarcityGrowthBars");
+  if (!root || !scarcityData?.growth) return;
+  root.innerHTML = "";
+  const maxAbs = Math.max(0.01, ...scarcityData.growth.map((row) => Math.abs(Number(row.change_pct) || 0)));
+  scarcityData.growth.forEach((row) => {
+    const value = Number(row.change_pct);
+    const width = Math.min(49, (Math.abs(value) / maxAbs) * 47);
+    const element = document.createElement("div");
+    element.className = "growth-row";
+    element.style.setProperty("--series-color", SCARCITY_COLORS[row.asset]);
+    element.innerHTML = `
+      <div class="growth-row-label"><strong>${row.label}</strong><small>${scarcityValueLabel(row.asset, row.end_value)}</small></div>
+      <div class="growth-track"><i class="growth-fill ${value < 0 ? "is-negative" : "is-positive"}" style="width:${width}%"></i></div>
+      <div class="growth-value ${value < 0 ? "neg" : value > 0 ? "pos" : ""}">${scarcitySigned(value)}</div>
+    `;
+    root.appendChild(element);
+  });
+}
+
+function renderScarcityRatio() {
+  const ratio = scarcityData?.ratio;
+  const value = document.getElementById("scarcityRatioValue");
+  const change = document.getElementById("scarcityRatioChange");
+  const annual = document.getElementById("scarcityRatioAnnual");
+  const period = document.getElementById("scarcityRatioPeriod");
+  const svg = document.getElementById("scarcityRatioSvg");
+  const wrap = svg?.closest(".ratio-chart-wrap");
+  if (!ratio || !svg || !value || !change || !annual || !period) return;
+  value.textContent = Number.isFinite(Number(ratio.current)) ? `${fmtNum(Number(ratio.current), 2)}M DUSD / $1T` : "--";
+  const delta = Number(ratio.change_pct);
+  change.textContent = scarcitySigned(delta);
+  change.className = delta < 0 ? "neg" : delta > 0 ? "pos" : "";
+  const annualized = Number(ratio.annualized_change_pct);
+  annual.textContent = scarcitySigned(annualized);
+  annual.className = annualized < 0 ? "neg" : annualized > 0 ? "pos" : "";
+  period.textContent = `TRACKED / ${Number(ratio.period_days) || scarcityData.window.days}D`;
+
+  const points = (ratio.points || []).filter((point) => Number.isFinite(Number(point.value)));
+  svg.innerHTML = "";
+  if (points.length < 2) return;
+  const W = Math.max(300, Math.round((wrap?.clientWidth || 620) - 2));
+  const H = 166;
+  const compact = W < 520;
+  const margin = { top: 12, right: 8, bottom: 27, left: compact ? 40 : 50 };
+  const plotW = W - margin.left - margin.right;
+  const plotH = H - margin.top - margin.bottom;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const values = points.map((point) => Number(point.value));
+  const rawMin = Math.min(...values);
+  const rawMax = Math.max(...values);
+  const rawSpan = Math.max(0.001, rawMax - rawMin);
+  const min = rawMin - rawSpan * 0.08;
+  const max = rawMax + rawSpan * 0.08;
+  const span = max - min;
+  const coords = points.map((point, index) => ({
+    x: margin.left + (index / (points.length - 1)) * plotW,
+    y: margin.top + ((max - Number(point.value)) / span) * plotH,
+  }));
+
+  for (let i = 0; i < 4; i++) {
+    const tickValue = min + (span * i) / 3;
+    const y = margin.top + ((max - tickValue) / span) * plotH;
+    svg.appendChild(
+      scarcitySvgNode("line", {
+        x1: margin.left,
+        y1: y,
+        x2: W - margin.right,
+        y2: y,
+        stroke: "rgba(255,255,255,.075)",
+        "stroke-width": 1,
+      }),
+    );
+    svg.appendChild(
+      scarcitySvgNode(
+        "text",
+        {
+          x: margin.left - 7,
+          y: y + 3,
+          fill: "#707a70",
+          "font-size": 8,
+          "text-anchor": "end",
+        },
+        `${tickValue.toFixed(2)}M`,
+      ),
+    );
+  }
+
+  const datePoints = [points[0], points[Math.floor((points.length - 1) / 2)], points[points.length - 1]];
+  datePoints.forEach((point, index) => {
+    const x = margin.left + ([0, 0.5, 1][index] || 0) * plotW;
+    svg.appendChild(
+      scarcitySvgNode(
+        "text",
+        {
+          x,
+          y: H - 7,
+          fill: "#707a70",
+          "font-size": 8,
+          "text-anchor": index === 0 ? "start" : index === 2 ? "end" : "middle",
+        },
+        formatDayLabel(point.date).toUpperCase(),
+      ),
+    );
+  });
+
+  const line = coords.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+  const area = `${line} L ${coords[coords.length - 1].x} ${H - margin.bottom} L ${coords[0].x} ${H - margin.bottom} Z`;
+  svg.appendChild(scarcitySvgNode("path", { d: area, fill: "rgba(255,104,28,.065)" }));
+  svg.appendChild(
+    scarcitySvgNode("path", {
+      d: line,
+      fill: "none",
+      stroke: "#ff8b45",
+      "stroke-width": 2,
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round",
+    }),
+  );
+  const last = coords[coords.length - 1];
+  svg.appendChild(scarcitySvgNode("circle", { cx: last.x, cy: last.y, r: 3, fill: "#ff8b45" }));
+}
+
+function formatCompactUsd(value, maximumFractionDigits = 2) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "--";
+  const magnitude = Math.abs(n);
+  const units = [
+    [1e12, "T"],
+    [1e9, "B"],
+    [1e6, "M"],
+    [1e3, "K"],
+  ];
+  const unit = units.find(([threshold]) => magnitude >= threshold);
+  if (unit) {
+    return `$${(n / unit[0]).toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits,
+    })}${unit[1]}`;
+  }
+  return `$${n.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function formatParityPrice(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "--";
+  const digits = n >= 100 ? 2 : n >= 1 ? 4 : 8;
+  return `$${n.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: digits,
+  })}`;
+}
+
+function formatParityMultiple(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "--";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M×`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(2)}K×`;
+  return `${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}×`;
+}
+
+function scarcityHoldingsAmount() {
+  const raw = document.getElementById("scarcityHoldingsInput")?.value || "";
+  const value = Number(String(raw).replace(/[,\s]/g, ""));
+  return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+function formatHoldingsAmount(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "0";
+  return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function renderScarcityHoldings() {
+  const root = document.getElementById("holdingsResults");
+  const scenarios = scarcityData?.market_cap?.scenarios || [];
+  if (!root) return;
+  const amount = scarcityHoldingsAmount();
+  if (!scenarios.length) {
+    root.innerHTML = '<div><span>MARKET DATA</span><strong>--</strong></div>';
+    return;
+  }
+  root.innerHTML = scenarios
+    .map(
+      (scenario) => `
+        <div data-asset="${scenario.asset}">
+          <h4>${scenario.label}</h4>
+          <small>${formatHoldingsAmount(amount)} DUSD × ${formatParityPrice(scenario.implied_dusd_price_usd)}</small>
+          <strong>${formatCompactUsd(amount * Number(scenario.implied_dusd_price_usd))}</strong>
+        </div>
+      `,
+    )
+    .join("");
+}
+
+function renderScarcityParity() {
+  const market = scarcityData?.market_cap;
+  const capNode = document.getElementById("parityDusdMarketCap");
+  const contextNode = document.getElementById("parityDusdContext");
+  const scenariosNode = document.getElementById("parityScenarios");
+  const updatedNode = document.getElementById("parityUpdated");
+  if (!capNode || !contextNode || !scenariosNode || !updatedNode) return;
+
+  if (!market?.current) {
+    capNode.textContent = "--";
+    contextNode.textContent = "CURRENT SUPPLY OR PRICE UNAVAILABLE";
+    scenariosNode.innerHTML = '<div class="parity-empty">AWAITING MARKET DATA...</div>';
+    renderScarcityHoldings();
+    return;
+  }
+
+  capNode.textContent = formatCompactUsd(market.current.market_cap_usd);
+  contextNode.innerHTML = `
+    <span>CURRENT DUSD PRICE / <strong>${fmtUsd(Number(market.current.price_usd), 8)}</strong></span>
+    <span>CIRCULATING SUPPLY / <strong>${fmtNum(Number(market.current.supply), 1)} DUSD</strong></span>
+  `;
+
+  const scenarios = market.scenarios || [];
+  scenariosNode.innerHTML = scenarios.length
+    ? scenarios
+        .map(
+          (scenario) => `
+            <div class="parity-scenario" data-asset="${scenario.asset}">
+              <span>AT ${scenario.label.toUpperCase()} SCALE</span>
+              <h4>${scenario.label}</h4>
+              <div class="parity-cap">${scenario.label.toUpperCase()} ${scenario.asset === "M2" ? "VALUE" : "MARKET VALUE"} / ${formatCompactUsd(scenario.market_cap_usd)}</div>
+              <span class="parity-price-label">DUSD PRICE AT PARITY</span>
+              <div class="parity-price">${formatParityPrice(scenario.implied_dusd_price_usd)}</div>
+              <div class="parity-multiple">${formatParityMultiple(scenario.multiple_from_current)} TODAY</div>
+              <div class="parity-method">${String(scenario.methodology || "").toUpperCase()}</div>
+            </div>
+          `,
+        )
+        .join("")
+    : '<div class="parity-empty">AWAITING BITCOIN / GOLD MARKET DATA...</div>';
+
+  if (market.updated_at) {
+    const updated = new Date(Number(market.updated_at) * 1000);
+    updatedNode.textContent = `MARKET DATA / ${updated.toLocaleString(undefined, {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).toUpperCase()}`;
+  } else {
+    updatedNode.textContent = "MARKET DATA / --";
+  }
+  renderScarcityHoldings();
+}
+
+function scarcityClockMain(asset, value) {
+  if (!Number.isFinite(value)) return "--";
+  if (asset === "DUSD") return `${fmtNum(value, 1)} DUSD`;
+  if (asset === "BTC") return `${value.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} BTC`;
+  if (asset === "GOLD") return `${value.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} t`;
+  return `$${(value / 1000).toLocaleString(undefined, { minimumFractionDigits: 6, maximumFractionDigits: 6 })}T`;
+}
+
+function scarcityClockMovement(asset, value) {
+  if (!Number.isFinite(value)) return "--";
+  const sign = value > 0 ? "+" : value < 0 ? "-" : "";
+  const magnitude = Math.abs(value);
+  if (asset === "DUSD") return `${sign}${fmtNum(magnitude, 1)} DUSD`;
+  if (asset === "BTC") return `${sign}${magnitude.toFixed(6)} BTC`;
+  if (asset === "GOLD") return `${sign}${(magnitude * 1000).toFixed(2)} kg`;
+  return `${sign}$${fmtNum(magnitude * 1_000_000_000, 0)}`;
+}
+
+function renderScarcityClock() {
+  if (!scarcityData?.clock) return;
+  const nowMs = Date.now();
+  const openSeconds = Math.max(0, (nowMs - scarcityPageOpenedAt) / 1000);
+  scarcityData.clock.forEach((row) => {
+    const asset = row.asset;
+    const rate = Number(row.rate_per_second);
+    const base = Number(row.base_value);
+    const baseMs = Number(row.base_timestamp) * 1000;
+    const sinceBase = Math.max(0, (nowMs - baseMs) / 1000);
+    const current = base + rate * sinceBase;
+    const main = document.getElementById(`clock${asset}`);
+    const delta = document.getElementById(`clockDelta${asset}`);
+    const rateNode = document.getElementById(`clockRate${asset}`);
+    if (main) main.textContent = scarcityClockMain(asset, current);
+    if (delta) delta.textContent = `SINCE OPEN / ${scarcityClockMovement(asset, rate * openSeconds)}`;
+    if (rateNode) rateNode.textContent = `${scarcityClockMovement(asset, rate)} / SEC · ${String(row.calculation_window).toUpperCase()}`;
+  });
+}
+
+function startScarcityClock() {
+  if (scarcityClockTimer) window.clearInterval(scarcityClockTimer);
+  renderScarcityClock();
+  scarcityClockTimer = window.setInterval(renderScarcityClock, 100);
+}
+
+function setScarcityMode(nextMode) {
+  scarcityMode = nextMode === "growth" ? "growth" : "indexed";
+  document.querySelectorAll("[data-scarcity-mode]").forEach((button) => {
+    button.classList.toggle("is-active", button.getAttribute("data-scarcity-mode") === scarcityMode);
+  });
+  const indexed = document.getElementById("scarcityIndexedView");
+  const growth = document.getElementById("scarcityGrowthView");
+  if (indexed) indexed.hidden = scarcityMode !== "indexed";
+  if (growth) growth.hidden = scarcityMode !== "growth";
+  if (scarcityMode === "indexed") renderScarcityIndexed();
+}
+
+function renderScarcity() {
+  if (!scarcityData) return;
+  const windowLabel = document.getElementById("scarcityWindow");
+  if (windowLabel) windowLabel.textContent = `COMMON WINDOW / ${scarcityData.window.days}D`;
+  renderScarcityIndexed();
+  renderScarcityGrowth();
+  renderScarcityLegend();
+  renderScarcityRatio();
+  renderScarcityParity();
+  setupScarcityChartInteractions();
+  startScarcityClock();
+  setScarcityMode(scarcityMode);
+}
+
+async function loadScarcity() {
+  scarcityData = await getJson("/api/scarcity");
+  renderScarcity();
+  if (scarcityDataRefreshTimer === null) {
+    scarcityDataRefreshTimer = window.setInterval(() => {
+      if (!document.hidden) {
+        loadScarcity().catch((error) => console.error("Scarcity refresh unavailable", error));
+      }
+    }, 15 * 60_000);
+  }
+}
+
 function bind() {
   bindBurnWindowControls();
   document.querySelectorAll("[data-trade-window]").forEach((b) => {
@@ -1097,6 +1667,32 @@ function bind() {
       applyDailyBurnChartView();
     });
   });
+  document.querySelectorAll("[data-scarcity-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      setScarcityMode(button.getAttribute("data-scarcity-mode"));
+    });
+  });
+  const holdingsInput = document.getElementById("scarcityHoldingsInput");
+  if (holdingsInput) {
+    holdingsInput.addEventListener("input", renderScarcityHoldings);
+    holdingsInput.addEventListener("blur", () => {
+      holdingsInput.value = formatHoldingsAmount(scarcityHoldingsAmount());
+      renderScarcityHoldings();
+    });
+  }
+  let scarcityResizeFrame = 0;
+  window.addEventListener(
+    "resize",
+    () => {
+      if (!scarcityData || scarcityResizeFrame) return;
+      scarcityResizeFrame = window.requestAnimationFrame(() => {
+        scarcityResizeFrame = 0;
+        if (scarcityMode === "indexed") renderScarcityIndexed();
+        renderScarcityRatio();
+      });
+    },
+    { passive: true },
+  );
   if (els.burnsViewToggle) {
     els.burnsViewToggle.addEventListener("click", () => {
       showAllBurns = !showAllBurns;
@@ -1161,6 +1757,7 @@ async function boot() {
   await loadTradingWindow();
   await loadBurns();
   await loadDailyBurnsChart();
+  await loadScarcity().catch((error) => console.error("Scarcity data unavailable", error));
 }
 
 boot().catch((error) => {
