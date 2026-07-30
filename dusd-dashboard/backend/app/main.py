@@ -72,6 +72,36 @@ def create_app() -> FastAPI:
     }
     app.state.data_sync_lock = threading.Lock()
 
+    scarcity_bootstrapped = False
+    if settings.run_scheduler and settings.sync_on_start:
+        scarcity_count = conn.execute(
+            "SELECT COUNT(1) AS c FROM scarcity_observations"
+        ).fetchone()
+        if not scarcity_count or int(scarcity_count["c"]) == 0:
+            log.info("scarcity.bootstrap.start")
+            try:
+                bootstrap_result = sync_scarcity_data(conn)
+                scarcity_bootstrapped = all(
+                    bootstrap_result.get(asset, {}).get("ok")
+                    for asset in ("DUSD", "BTC", "GOLD", "M2")
+                )
+                log.info("scarcity.bootstrap.end result=%s", bootstrap_result)
+            except Exception:
+                log.exception("scarcity.bootstrap.fail")
+
+        market_price_count = conn.execute(
+            "SELECT COUNT(1) AS c FROM scarcity_market_prices"
+        ).fetchone()
+        if not market_price_count or int(market_price_count["c"]) == 0:
+            log.info("market_prices.bootstrap.start")
+            try:
+                market_result = sync_scarcity_market_prices(
+                    conn, coingecko_api_key=settings.coingecko_api_key
+                )
+                log.info("market_prices.bootstrap.end result=%s", market_result)
+            except Exception:
+                log.exception("market_prices.bootstrap.fail")
+
     # Static frontend
     frontend_dir = Path(__file__).resolve().parents[2] / "frontend"
     assets_dir = Path(__file__).resolve().parents[2] / "assets"
@@ -258,7 +288,8 @@ def create_app() -> FastAPI:
 
         if settings.sync_on_start:
             threading.Thread(target=_sync_job, daemon=True).start()
-            threading.Thread(target=_scarcity_job, daemon=True).start()
+            if not scarcity_bootstrapped:
+                threading.Thread(target=_scarcity_job, daemon=True).start()
 
     return app
 

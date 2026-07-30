@@ -224,6 +224,8 @@ let scarcityMode = "indexed";
 let scarcityChartGeometry = null;
 let scarcityClockTimer = null;
 let scarcityDataRefreshTimer = null;
+let scarcityBootstrapRetryTimer = null;
+let scarcityBootstrapRetryDelayMs = 2_000;
 const scarcityPageOpenedAt = Date.now();
 const SCARCITY_COLORS = {
   DUSD: "#ff8b45",
@@ -1639,15 +1641,51 @@ function renderScarcity() {
   setScarcityMode(scarcityMode);
 }
 
+function scarcityPayloadReady(payload) {
+  return (
+    (payload?.series?.length || 0) >= 4 &&
+    (payload?.clock?.length || 0) >= 4 &&
+    (payload?.market_cap?.scenarios?.length || 0) >= 3
+  );
+}
+
+function scheduleScarcityBootstrapRetry() {
+  if (scarcityBootstrapRetryTimer !== null) return;
+  const delay = scarcityBootstrapRetryDelayMs;
+  scarcityBootstrapRetryDelayMs = Math.min(30_000, delay * 2);
+  scarcityBootstrapRetryTimer = window.setTimeout(() => {
+    scarcityBootstrapRetryTimer = null;
+    if (!document.hidden) {
+      loadScarcity().catch((error) => console.error("Scarcity bootstrap retry unavailable", error));
+    } else {
+      scheduleScarcityBootstrapRetry();
+    }
+  }, delay);
+}
+
 async function loadScarcity() {
-  scarcityData = await getJson("/api/scarcity");
-  renderScarcity();
   if (scarcityDataRefreshTimer === null) {
     scarcityDataRefreshTimer = window.setInterval(() => {
       if (!document.hidden) {
         loadScarcity().catch((error) => console.error("Scarcity refresh unavailable", error));
       }
     }, 15 * 60_000);
+  }
+  try {
+    scarcityData = await getJson("/api/scarcity");
+    renderScarcity();
+    if (scarcityPayloadReady(scarcityData)) {
+      if (scarcityBootstrapRetryTimer !== null) {
+        window.clearTimeout(scarcityBootstrapRetryTimer);
+        scarcityBootstrapRetryTimer = null;
+      }
+      scarcityBootstrapRetryDelayMs = 2_000;
+    } else {
+      scheduleScarcityBootstrapRetry();
+    }
+  } catch (error) {
+    scheduleScarcityBootstrapRetry();
+    throw error;
   }
 }
 
