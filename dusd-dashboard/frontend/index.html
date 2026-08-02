@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260729h" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260802a" />
   </head>
   <body>
     <div class="cosmic-backdrop" aria-hidden="true"></div>
@@ -325,8 +325,61 @@
         </div>
       </section>
 
+      <section class="section-block burn-mechanics-section" aria-labelledby="burn-mechanics-title">
+        <div class="section-heading mechanics-heading">
+          <div>
+            <span class="section-index">05 / MECHANICS</span>
+            <h2 id="burn-mechanics-title">Burn Mechanics</h2>
+            <p>Creator fees are automatically used to buy and permanently burn DUSD.</p>
+          </div>
+          <span class="mechanics-status"><i></i> AUTOMATED / 15M</span>
+        </div>
+
+        <div class="mechanics-grid">
+          <article class="mechanics-card interactive-surface">
+            <span class="mechanics-card-index">01 / SCHEDULE</span>
+            <h3>Schedule</h3>
+            <ul>
+              <li><b>Every 15 minutes</b><span>:00 / :15 / :30 / :45</span></li>
+              <li><b>Scheduled capacity</b><span>4 per hour / 96 per day</span></li>
+              <li><b>Activity-gated</b><span>Runs when sufficient creator fees from trading activity have accumulated.</span></li>
+            </ul>
+          </article>
+
+          <article class="mechanics-card interactive-surface">
+            <span class="mechanics-card-index">02 / EXECUTION</span>
+            <h3>Execution</h3>
+            <ul>
+              <li><b>Fee claim</b><span>At least 0.02 SOL available.</span></li>
+              <li><b>DUSD purchase</b><span>At least 0.02 SOL safely spendable.</span></li>
+              <li><b>Balance reserve</b><span>0.05 SOL minimum, plus transaction costs.</span></li>
+              <li><b>Routing</b><span>Jupiter / no platform fee.</span></li>
+              <li><b>Burn amount</b><span>Exactly the DUSD acquired in that cycle.</span></li>
+              <li><b>Confirmation safety</b><span>Failed confirmation checks retry automatically; completed transactions are not intentionally repeated.</span></li>
+            </ul>
+          </article>
+
+          <article class="mechanics-card mechanics-card--verification interactive-surface">
+            <span class="mechanics-card-index">03 / PUBLIC VERIFICATION</span>
+            <h3>Public Verification</h3>
+            <ul>
+              <li><b>On-chain record</b><span>Every claim, purchase and burn is recorded on Solana.</span></li>
+              <li><b>Cycle receipts</b><span>Each completed cycle produces public transaction signatures.</span></li>
+            </ul>
+            <div class="mechanics-links">
+              <a href="https://solscan.io/account/9TcpCXauYThiqkgS54j85BmQwFxcvSHmcofQ6BmoP5E5" target="_blank" rel="noopener noreferrer" title="9TcpCXauYThiqkgS54j85BmQwFxcvSHmcofQ6BmoP5E5" aria-label="View automation wallet 9TcpCXauYThiqkgS54j85BmQwFxcvSHmcofQ6BmoP5E5 on Solscan">
+                <span>AUTOMATION WALLET</span><code>9TcpCX...P5E5</code><b aria-hidden="true">&#8599;</b>
+              </a>
+              <a href="https://solscan.io/account/HvWgAxG4uGKYgN4KXkdzP4sgXhVhsJbMasGt4DtMVBCt" target="_blank" rel="noopener noreferrer" title="HvWgAxG4uGKYgN4KXkdzP4sgXhVhsJbMasGt4DtMVBCt" aria-label="View creator fee vault HvWgAxG4uGKYgN4KXkdzP4sgXhVhsJbMasGt4DtMVBCt on Solscan">
+                <span>CREATOR FEE VAULT</span><code>HvWgAx...VBCt</code><b aria-hidden="true">&#8599;</b>
+              </a>
+            </div>
+          </article>
+        </div>
+      </section>
+
       <section class="section-block community-section" aria-labelledby="community-heading">
-        <div class="section-heading"><div><span class="section-index">05 / NETWORK</span><h2 id="community-heading">Community uplinks</h2></div></div>
+        <div class="section-heading"><div><span class="section-index">06 / NETWORK</span><h2 id="community-heading">Community uplinks</h2></div></div>
         <div class="community-grid">
           <a class="community-node interactive-surface" href="https://x.com/dusd_fun" target="_blank" rel="noopener noreferrer"><img src="/assets/xlogo.webp" alt="" /><span><small>CHANNEL / 01</small><strong>OFFICIAL X</strong></span><b>↗</b></a>
           <a class="community-node interactive-surface" href="https://t.me/dusdSol" target="_blank" rel="noopener noreferrer"><img src="/assets/telegramlogo.webp" alt="" /><span><small>CHANNEL / 02</small><strong>TELEGRAM</strong></span><b>↗</b></a>
@@ -338,6 +391,6 @@
       <footer class="footer"><span>DUSD / BURN MONITOR</span><span>DATA STREAM // SOLANA MAINNET</span><span>END OF LINE_</span></footer>
     </main>
 
-    <script type="module" src="/static/app.js?v=20260729h"></script>
+    <script type="module" src="/static/app.js?v=20260802a"></script>
   </body>
 </html>
