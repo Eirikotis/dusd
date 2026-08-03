@@ -212,13 +212,22 @@ const BURNS_PREVIEW = 8;
 /** Calendar days excluded only from Daily Burn chart display (e.g. single-day outlier). */
 const DAILY_BURN_CHART_EXCLUDED_DAYS = new Set(["2026-03-10"]);
 
-/** Plot geometry for daily burn chart hover. */
+/** Plot geometry for the shared burn and price chart hover. */
 let dailyBurnPlotState = null;
 
-/** Raw API rows for daily burn; range toggles derive a non-mutating view. */
+/** Raw API rows; chart mode and range controls derive non-mutating views. */
 let dailyBurnPointsRaw = [];
-/** `"30d"` | `"all"` — default 30D. */
+/** daily | cumulative | price */
+let dailyChartMode = "daily";
+/** 30d | 90d | all */
 let dailyBurnChartRange = "30d";
+
+const DAILY_CHART_MODE_CONFIG = {
+  daily: { key: "total_ui", color: "#ff5a14" },
+  cumulative: { key: "cumulative_ui", color: "#ff8b45" },
+  price: { key: "price_usd", color: "#35e66f" },
+};
+
 let scarcityData = null;
 let scarcityMode = "indexed";
 let scarcityChartGeometry = null;
@@ -233,27 +242,36 @@ const SCARCITY_COLORS = {
   GOLD: "#d6a34b",
   M2: "#35e66f",
 };
-
-function buildDailyBurnCleanedSeries(raw) {
+function buildDailyChartSeries(raw) {
   const arr = Array.isArray(raw) ? raw : [];
+  let cumulative = 0;
   return arr
     .map((p) => ({
       day: p.day,
-      total_ui: p.total_ui == null ? NaN : Number(p.total_ui),
+      total_ui: p.total_ui == null ? 0 : Number(p.total_ui),
+      cumulative_ui: p.cumulative_ui == null ? NaN : Number(p.cumulative_ui),
+      price_usd: p.price_usd == null ? NaN : Number(p.price_usd),
     }))
-    .filter((p) => p.day && Number.isFinite(p.total_ui) && !DAILY_BURN_CHART_EXCLUDED_DAYS.has(p.day))
-    .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+    .filter((p) => p.day && Number.isFinite(p.total_ui))
+    .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0))
+    .map((p) => {
+      cumulative += p.total_ui;
+      return {
+        ...p,
+        cumulative_ui: Number.isFinite(p.cumulative_ui) ? p.cumulative_ui : cumulative,
+      };
+    });
 }
 
-/** Last 30 calendar days inclusive ending at the latest day in `cleaned`. */
-function sliceDailyBurnLast30Days(cleaned) {
-  if (!cleaned.length) return cleaned;
-  const lastDay = cleaned[cleaned.length - 1].day;
+/** Calendar-day slice inclusive, ending at the latest available day. */
+function sliceDailyChartLastDays(points, dayCount) {
+  if (!points.length) return points;
+  const lastDay = points[points.length - 1].day;
   const [y, m, d] = lastDay.split("-").map(Number);
-  if (!y || !m || !d) return cleaned;
+  if (!y || !m || !d) return points;
   const endMs = Date.UTC(y, m - 1, d);
-  const startMs = endMs - 29 * 86400000;
-  return cleaned.filter((p) => {
+  const startMs = endMs - (dayCount - 1) * 86400000;
+  return points.filter((p) => {
     const [py, pm, pd] = p.day.split("-").map(Number);
     if (!py || !pm || !pd) return false;
     const t = Date.UTC(py, pm - 1, pd);
@@ -262,9 +280,20 @@ function sliceDailyBurnLast30Days(cleaned) {
 }
 
 function applyDailyBurnChartView() {
-  const cleaned = buildDailyBurnCleanedSeries(dailyBurnPointsRaw);
-  const view = dailyBurnChartRange === "all" ? cleaned : sliceDailyBurnLast30Days(cleaned);
-  renderDailyBurnChart(view);
+  const config = DAILY_CHART_MODE_CONFIG[dailyChartMode] || DAILY_CHART_MODE_CONFIG.daily;
+  let points = buildDailyChartSeries(dailyBurnPointsRaw).filter((p) =>
+    Number.isFinite(Number(p[config.key])),
+  );
+  if (dailyChartMode === "daily") {
+    points = points.filter((p) => !DAILY_BURN_CHART_EXCLUDED_DAYS.has(p.day));
+  }
+  if (dailyBurnChartRange !== "all") {
+    points = sliceDailyChartLastDays(points, dailyBurnChartRange === "90d" ? 90 : 30);
+  }
+
+  const panel = document.querySelector(".chart-panel[data-chart-mode]");
+  if (panel) panel.setAttribute("data-chart-mode", dailyChartMode);
+  renderDailyBurnChart(points.map((p) => ({ day: p.day, total_ui: Number(p[config.key]) })));
 }
 
 /** Daily burn Y-axis: compact K / M (e.g. 20.43K, 1.2M). */
@@ -286,6 +315,17 @@ function fmtChartAxisYBurn(v) {
   return `${sign}${trimNum(ax)}`;
 }
 
+function fmtChartAxisYPrice(v) {
+  const x = Number(v);
+  if (!Number.isFinite(x) || x === 0) return "$0";
+  if (Math.abs(x) >= 1) return "$" + x.toFixed(2).replace(/\.?0+$/, "");
+  const decimals = Math.min(8, Math.max(2, Math.ceil(-Math.log10(Math.abs(x))) + 2));
+  return "$" + x.toFixed(decimals).replace(/\.?0+$/, "");
+}
+
+function formatDailyChartValue(v, mode) {
+  return mode === "price" ? fmtUsd(v, 8) : fmtNum(v, mode === "daily" ? 4 : 1) + " DUSD";
+}
 /** X-axis date: "11 Mar" (UTC, en-GB). */
 function formatDayLabelAxis(ymd) {
   if (!ymd || typeof ymd !== "string") return "—";
@@ -398,7 +438,7 @@ function setupDailyBurnInteractions() {
       }
     }
     const p = pts[best];
-    tip.textContent = `${formatCalendarDayUk(p.day)} · ${fmtNum(p.v, 4)} DUSD`;
+    tip.textContent = formatCalendarDayUk(p.day) + " / " + formatDailyChartValue(p.v, dailyBurnPlotState.mode);
     tip.hidden = false;
     const bodyRect = body.getBoundingClientRect();
     const rect = svg.getBoundingClientRect();
@@ -418,6 +458,8 @@ function renderDailyBurnChart(points) {
   const svg = document.getElementById("dailyBurnSvg");
   const tip = document.getElementById("dailyBurnTooltip");
   if (!svg) return;
+  const chartConfig = DAILY_CHART_MODE_CONFIG[dailyChartMode] || DAILY_CHART_MODE_CONFIG.daily;
+  const chartColor = chartConfig.color;
   dailyBurnPlotState = null;
   if (tip) tip.hidden = true;
 
@@ -463,10 +505,16 @@ function renderDailyBurnChart(points) {
   const padB = narrowMobile ? 38 : compact ? 34 : 40;
   const gw = W - padL - padR;
   const gh = H - padT - padB;
-  const maxV = Math.max(...cleaned.map((p) => p.v), 1e-12);
-  const minV = 0;
-  /* Slight headroom above peak; still beginAtZero (minV = 0). */
-  const yScaleMax = narrowMobile ? maxV * 1.06 : maxV;
+  const rawMaxV = Math.max(...cleaned.map((p) => p.v), 1e-12);
+  const rawMinV = Math.min(...cleaned.map((p) => p.v));
+  const priceSpread = Math.max(rawMaxV - rawMinV, rawMaxV * 0.08, 1e-12);
+  const minV = dailyChartMode === "price" ? Math.max(0, rawMinV - priceSpread * 0.15) : 0;
+  const yScaleMax =
+    dailyChartMode === "price"
+      ? rawMaxV + priceSpread * 0.15
+      : narrowMobile
+        ? rawMaxV * 1.06
+        : rawMaxV;
   const plotVertFrac = narrowMobile ? 0.82 : 0.92;
   const xLabelY = narrowMobile ? H - 12 : H - 10;
   const yLabelInset = narrowMobile ? 10 : 8;
@@ -526,7 +574,11 @@ function renderDailyBurnChart(points) {
     svg.appendChild(t);
   }
 
-  const yticks = uniqueSortedYTicks(yScaleMax, [0, 0.25, 0.5, 0.75, 1]);
+  const yTickFractions = [0, 0.25, 0.5, 0.75, 1];
+  const yticks =
+    dailyChartMode === "price"
+      ? yTickFractions.map((fraction) => minV + fraction * (yScaleMax - minV))
+      : uniqueSortedYTicks(yScaleMax, yTickFractions);
   const yTickFs = narrowMobile ? "10" : compact ? "10" : "11";
   yticks.forEach((yv, i) => {
     const ly = padT + gh - ((yv - minV) / (yScaleMax - minV)) * gh * plotVertFrac;
@@ -537,7 +589,7 @@ function renderDailyBurnChart(points) {
     yt.setAttribute("font-size", yTickFs);
     yt.setAttribute("text-anchor", "end");
     yt.setAttribute("font-family", "system-ui, Segoe UI, sans-serif");
-    yt.textContent = fmtChartAxisYBurn(yv);
+    yt.textContent = dailyChartMode === "price" ? fmtChartAxisYPrice(yv) : fmtChartAxisYBurn(yv);
     svg.appendChild(yt);
   });
 
@@ -547,7 +599,7 @@ function renderDailyBurnChart(points) {
   const glowPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   glowPath.setAttribute("d", lineD);
   glowPath.setAttribute("fill", "none");
-  glowPath.setAttribute("stroke", "#ff5a14");
+  glowPath.setAttribute("stroke", chartColor);
   glowPath.setAttribute("stroke-width", String(glowStroke));
   glowPath.setAttribute("stroke-linecap", "round");
   glowPath.setAttribute("stroke-linejoin", "round");
@@ -558,13 +610,14 @@ function renderDailyBurnChart(points) {
   const linePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   linePath.setAttribute("d", lineD);
   linePath.setAttribute("fill", "none");
-  linePath.setAttribute("stroke", "#ff5a14");
+  linePath.setAttribute("stroke", chartColor);
   linePath.setAttribute("stroke-width", String(lineStroke));
   linePath.setAttribute("stroke-linecap", "round");
   linePath.setAttribute("stroke-linejoin", "round");
   svg.appendChild(linePath);
 
   dailyBurnPlotState = {
+    mode: dailyChartMode,
     pts: cleaned.map((p, i) => ({ day: p.day, v: p.v, x: xs[i], y: ys[i] })),
   };
   setupDailyBurnInteractions();
@@ -573,18 +626,21 @@ function renderDailyBurnChart(points) {
 async function loadDailyBurnsChart() {
   if (!document.getElementById("dailyBurnSvg")) return;
   try {
-    const data = await getJson("/api/burns/daily?days=366");
+    const data = await getJson("/api/burns/daily?days=10000");
     dailyBurnPointsRaw = data.points || [];
   } catch {
     dailyBurnPointsRaw = [];
   }
+  setActiveButtons("data-daily-chart-mode", dailyChartMode);
   setActiveButtons("data-daily-chart-range", dailyBurnChartRange);
   applyDailyBurnChartView();
 }
 
 function setActiveButtons(attr, value) {
   document.querySelectorAll(`button[${attr}]`).forEach((b) => {
-    b.classList.toggle("is-active", b.getAttribute(attr) === value);
+    const active = b.getAttribute(attr) === value;
+    b.classList.toggle("is-active", active);
+    b.setAttribute("aria-selected", String(active));
   });
 }
 
@@ -1696,6 +1752,13 @@ function bind() {
       tradeWindow = b.getAttribute("data-trade-window");
       setActiveButtons("data-trade-window", tradeWindow);
       await loadTradingWindow();
+    });
+  });
+  document.querySelectorAll("[data-daily-chart-mode]").forEach((b) => {
+    b.addEventListener("click", () => {
+      dailyChartMode = b.getAttribute("data-daily-chart-mode") || "daily";
+      setActiveButtons("data-daily-chart-mode", dailyChartMode);
+      applyDailyBurnChartView();
     });
   });
   document.querySelectorAll("[data-daily-chart-range]").forEach((b) => {

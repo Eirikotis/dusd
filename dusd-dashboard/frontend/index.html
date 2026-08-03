@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260802a" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260803b" />
   </head>
   <body>
     <div class="cosmic-backdrop" aria-hidden="true"></div>
@@ -151,12 +151,20 @@
             <a class="terminal-action terminal-action--chart interactive-surface" href="https://dexscreener.com/solana/2z2ubdxaafishs6xrz2atv2ro7jl8hfduckxttfhjhdw" target="_blank" rel="noopener noreferrer"><span>OPEN</span><strong>DEX CHART ↗</strong></a>
             <a class="terminal-action terminal-action--buy interactive-surface" href="https://jup.ag/?buy=B8RHrVBxSjBGKqAbn1tXo6CWjvt5jFkkqjbCZtuDpump" target="_blank" rel="noopener noreferrer"><span>EXECUTE</span><strong>BUY DUSD ↗</strong></a>
           </div>
-          <article class="panel chart-panel interactive-surface">
-            <div class="panel-head panel-head--controls">
-              <div><span class="panel-path">~/burn-history</span><h2>Daily burn</h2></div>
-              <div class="seg" role="tablist" aria-label="Daily burn chart range">
-                <button type="button" class="seg-btn is-active" data-daily-chart-range="30d">30D</button>
-                <button type="button" class="seg-btn" data-daily-chart-range="all">ALL</button>
+          <article class="panel chart-panel interactive-surface" data-chart-mode="daily">
+            <div class="panel-head chart-panel-head">
+
+              <div class="daily-chart-controls">
+                <div class="seg daily-chart-mode-tabs" role="tablist" aria-label="Chart metric">
+                  <button type="button" class="seg-btn is-active" data-daily-chart-mode="daily">DAILY BURN</button>
+                  <button type="button" class="seg-btn" data-daily-chart-mode="cumulative">CUMULATIVE</button>
+                  <button type="button" class="seg-btn" data-daily-chart-mode="price">DUSD PRICE</button>
+                </div>
+                <div class="seg daily-chart-range-tabs" role="tablist" aria-label="Chart timeframe">
+                  <button type="button" class="seg-btn is-active" data-daily-chart-range="30d">30D</button>
+                  <button type="button" class="seg-btn" data-daily-chart-range="90d">90D</button>
+                  <button type="button" class="seg-btn" data-daily-chart-range="all">ALL</button>
+                </div>
               </div>
             </div>
             <div class="chart-body daily-burn-panel__body">
@@ -391,6 +399,6 @@
       <footer class="footer"><span>DUSD / BURN MONITOR</span><span>DATA STREAM // SOLANA MAINNET</span><span>END OF LINE_</span></footer>
     </main>
 
-    <script type="module" src="/static/app.js?v=20260802a"></script>
+    <script type="module" src="/static/app.js?v=20260803a"></script>
   </body>
 </html>

@@ -505,24 +505,54 @@ def recent_burns(conn, *, limit: int = 50) -> list[dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
-def daily_burn_totals(conn, *, days: int = 90) -> list[dict[str, Any]]:
-    """UTC calendar-day totals from local burn_events (same DB as /api/burns)."""
-    lim = max(1, min(int(days), 366))
-    rows = conn.execute(
+def daily_burn_totals(
+    conn, *, days: int = 90, dusd_mint: str | None = None
+) -> list[dict[str, Any]]:
+    """Daily burn totals, cumulative burn, and the latest UTC price snapshot per day."""
+    lim = max(1, min(int(days), 10_000))
+    burn_rows = conn.execute(
         """
-        SELECT day, total_ui
-        FROM (
-            SELECT strftime('%Y-%m-%d', timestamp, 'unixepoch') AS day,
-                   SUM(COALESCE(amount_ui, 0)) AS total_ui
-            FROM burn_events
-            WHERE timestamp IS NOT NULL
-            GROUP BY day
-            ORDER BY day DESC
-            LIMIT ?
-        ) AS daily_agg
+        SELECT strftime('%Y-%m-%d', timestamp, 'unixepoch') AS day,
+               SUM(COALESCE(amount_ui, 0)) AS total_ui
+        FROM burn_events
+        WHERE timestamp IS NOT NULL
+        GROUP BY day
         ORDER BY day ASC
-        """,
-        (lim,),
+        """
     ).fetchall()
-    return [dict(r) for r in rows]
+
+    snapshot_sql = """
+        SELECT captured_at, price_usd
+        FROM token_snapshots_hourly
+        WHERE price_usd IS NOT NULL
+    """
+    params: tuple[Any, ...] = ()
+    if dusd_mint:
+        snapshot_sql += " AND dusd_mint = ?"
+        params = (dusd_mint,)
+    snapshot_sql += " ORDER BY captured_at ASC, id ASC"
+    snapshot_rows = conn.execute(snapshot_sql, params).fetchall()
+
+    by_day: dict[str, dict[str, Any]] = {}
+    for row in burn_rows:
+        day = str(row["day"])
+        by_day[day] = {
+            "day": day,
+            "total_ui": float(row["total_ui"] or 0),
+            "price_usd": None,
+        }
+
+    # Rows are chronological, so overwriting a date selects its final UTC snapshot.
+    for row in snapshot_rows:
+        day = time.strftime("%Y-%m-%d", time.gmtime(int(row["captured_at"])))
+        point = by_day.setdefault(day, {"day": day, "total_ui": 0.0, "price_usd": None})
+        point["price_usd"] = float(row["price_usd"])
+
+    cumulative = 0.0
+    points: list[dict[str, Any]] = []
+    for day in sorted(by_day):
+        point = by_day[day]
+        cumulative += float(point["total_ui"])
+        points.append({**point, "cumulative_ui": cumulative})
+    return points[-lim:]
 

@@ -154,7 +154,10 @@ def create_app() -> FastAPI:
 
     @app.get("/api/burns/daily")
     def api_burns_daily(days: int = 90):
-        return {"points": daily_burn_totals(conn, days=days)}
+        return {
+            "points": daily_burn_totals(conn, days=days, dusd_mint=settings.dusd_mint),
+            "price_snapshot": "latest UTC snapshot per day",
+        }
 
     @app.get("/api/scarcity")
     def api_scarcity():
